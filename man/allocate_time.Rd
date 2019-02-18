@@ -10,8 +10,13 @@ allocate_time(households)
 \item{households}{Tibble of household agents.}
 }
 \description{
-Given knowledge of the irrigation system and simple heuristics for relative returns to labor farming and maintaining infrastructure, the households solve a constrained optimization problem [@david2015effect] to determine of the proportion of available time they should devote to each activity so as to maximize their expected utility.
+Given knowledge of the irrigation system and simple heuristics
+for relative returns to labor farming and maintaining
+infrastructure, households solve a constrained optimization
+problem [@david2015effect] to determine of the proportion of
+available time they should devote to each activity so as to
+maximize their expected utility.
 }
 \examples{
-allocatE_time(households)
+allocate_time(households)
 }

@@ -1,6 +1,11 @@
 #' Household level time allocation
 #'
-#' Given knowledge of the irrigation system and simple heuristics for relative returns to labor farming and maintaining infrastructure, the households solve a constrained optimization problem [@david2015effect] to determine of the proportion of available time they should devote to each activity so as to maximize their expected utility.
+#' Given knowledge of the irrigation system and simple heuristics
+#' for relative returns to labor farming and maintaining
+#' infrastructure, households solve a constrained optimization
+#' problem [@david2015effect] to determine of the proportion of
+#' available time they should devote to each activity so as to
+#' maximize their expected utility.
 #' @param households Tibble of household agents.
 #' @export
 #' @examples
@@ -8,7 +13,7 @@
 
 
 allocate_time <- function(households){
-  total_labor = 1; j = 0.2; k = 0.6
+  total_labor <- 1; j <- 0.2; k <- 0.6
   households %>%   #calculate optimum values for the different regions of the step function
     mutate(r1_maintainance = 0,
            r1_utility = yield_memory * land ^ (1 - j - k) * total_labor ^ j * precipitation ^ k,
