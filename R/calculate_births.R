@@ -1,6 +1,6 @@
-calculate_births <- function(households){
+calculate_births <- function(households, fertility_table){
   households %>%
-    unnest(occupants) %>%
+    unnest(individuals) %>%
     left_join(fertility_table, by = 'age') %>%  # find the fertility rate corresponding to age
     mutate(fertility_rate = if_else(is.na(fertility_rate), 0, fertility_rate),
            fertility_reduction = mgcv::predict.gam(fertility_elasticity, ., type = 'response'),
@@ -10,14 +10,14 @@ calculate_births <- function(households){
     .$births
 }
 
-give_birth <- function(occupants, births){
-  if(births > 0 %% !is.na(births)) occupants <- add_row(occupants, age = rep(0, births))
-  return(occupants)
+give_birth <- function(individuals, births){
+  if(births > 0 %% !is.na(births)) individuals <- add_row(individuals, age = rep(0, births))
+  return(individuals)
 }
 
 reproduce <- function(households){
   households %>%
     mutate(births = calculate_births(.),
-           occupants = map2(occupants, births, give_birth)) %>%
+           individuals = map2(individuals, births, give_birth)) %>%
     select(-births)
 }
