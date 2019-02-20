@@ -17,16 +17,15 @@ max_labor <- 280 # maximum days per year an individual can devote to farming
 
 
 
-# probability of a female giving birth at each age
-# all agent's are "female", which means these values are halved at runtime
 fertility_table <- tibble(
-  age = 10:49,
-  fertility_rate = rep(c(0.022, 0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5)
-) %>%
-  .[-1:-2,] # 10 and 11 year olds can't give birth
-
-# probability of an individual dying at each age
-mortality_table <- tibble(
-  age = 0:99,
-  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816), each = 5))
+  age = 0:119,
+  fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70))
 )
+
+mortality_table <- tibble(
+  age = 0:119,
+  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5))
+)
+
+fertility_shape <- 4.579627
+fertility_scale <- 0.1
