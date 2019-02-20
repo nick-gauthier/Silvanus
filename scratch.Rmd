@@ -1,0 +1,196 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+testing
+```{r}
+#library(dplyr)
+#library(purrr)
+#library(magrittr)
+#library(furrr)
+library(sf)
+library(tidygraph)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggraph)
+library(ggplot2)
+library(raster)
+```
+
+```{r}
+test_pop <- create_settlement(1)
+
+1:500 %>%
+  reduce(~mutate(., households = map(households, ~reproduce(.) %>% die)), .init = test_pop) %>%
+  unnest %>%
+  unnest %>%
+  ggplot(aes(age)) +
+  geom_histogram(binwidth = 1, center = 0) +
+  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
+  theme_bw()
+```
+
+```{r}
+fertility_elasticity <- readr::read_csv('../North-Africa/data/fertility_data.csv', skip = 1) %>% 
+  dplyr::rename(food_ratio = X, fertility_reduction = Y) %>%
+  mgcv::gam(fertility_reduction ~ s(food_ratio, k = 35), family = mgcv::betar(eps = 0.0001), dat = .)
+
+fertility_elasticity
+
+
+
+```
+
+
+```{r}
+foodlim <- readr::read_csv('../../Foodlim_R_code/demog_vectors.csv')
+```
+
+```{r}
+fertility_table <- tibble(
+  age = 0:119,
+  fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70))
+)
+
+mortality_table <- tibble(
+  age = 0:119,
+  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5))
+)
+
+survival_elasticity_table <- tibble(age = 0:119, survivor_shape = foodlim$mortparms)
+
+usethis::use_data(fertility_table, mortality_table, survival_elasticity_table, internal = TRUE, overwrite = TRUE)
+usethis::use_testthat()
+```
+
+```{r}
+tibble(fertility_rate = test$m0 * 2) %>%
+  mutate(age = 0:119) %>%
+bind_rows(fertility_table, .id= 'type') %>%
+ggplot(aes(age, fertility_rate, color = type)) +
+  geom_point()
+
+
+plot(pgamma((1:99)/100, shape = 4.579627, scale = .1)
+```
+
+```{r}
+tibble(mortality_rate = 1 - foodlim$p0) %>%
+  mutate(age = 0:119) %>%
+bind_rows(mortality_table, .id= 'type') %>%
+ggplot(aes(age, mortality_rate, color = type)) +
+  geom_point()
+
+plot(test$mortparms)
+
+tibble(age = 0:119, survivor_shape = foodlim$mortparms)
+foodlim$mortparms
+
+
+plot(pgamma((1:99)/100, shape = foodlim$mortparms[1], scale = .1) * test$p0[1])
+```
+
+
+
+```{r}
+
+
+hex <- rbind(c(0,0), c(100,0), c(100,100), c(0,100), c(0,0)) %>%
+  list %>%
+  st_polygon %>%
+  st_sfc %>%
+  st_make_grid(square = FALSE)
+
+pts <- st_centroid(hex)
+
+# dist <- st_intersects(hex, sparse = TRUE) %>% 
+#   as_tibble %>%
+#   rename(from = row.id, to = col.id) %>%
+#   mutate(distance = st_distance(pts[from], pts[2], by_element = TRUE))
+
+dist <- st_distance(pts) %>%
+  `rownames<-`(1:length(pts)) %>%
+  `colnames<-`(1:length(pts))
+
+dist_edgelist <- list(
+  from = rownames(dist)[row(dist)] %||% row(dist),
+  to = colnames(dist)[col(dist)] %||% col(dist),
+  weight = dist
+  ) %>% 
+  map_dfc(as.vector) %>%
+  mutate_if(is.character, as.integer)
+  
+
+#filter(near(weight, 10))
+
+settlements <- create_settlement(length(hex)) %>%
+  mutate(population = 10,
+         x = st_coordinates(pts)[,1],
+         y = st_coordinates(pts)[,2],
+         geometry = pts) %>%
+  tbl_graph(edges = dist_edgelist, directed = TRUE) %E>%
+  rename(distance = weight)
+
+settlements  
+
+ggraph(settlements) +
+  geom_edge_link() +
+  geom_node_point(aes(size = population)) +
+  coord_fixed() +
+  theme_void()
+
+settlements %N>%
+  mutate(edge = centrality_degree() < 6)
+
+# full <- igraph::distances(settlements, mode = 'out') %>%
+#   as_tbl_graph %>%
+#   mutate(settlement = 1:n()) %E>%
+#   mutate(type = 'route')
+
+# graph_join(settlements, full) %>%
+#   filter(type == 'route') %>%
+#   ggraph() +
+#   geom_edge_link()
+```
+
+```{r}
+settlements %E>%
+  filter(near(weight, 10)) %>%
+  ggraph() +
+  geom_edge_link() +
+  geom_node_point(aes(size = population)) +
+  coord_equal() +
+  theme_void()
+```
+```{r}
+test <- settlements %N>%
+  mutate(attractiveness = 10, pop_start = 10)
+
+reduce(1:100, ~interact2(.x), .init = test) %E>%
+  filter(near(distance, 10)) %>%
+  ggraph() +
+  geom_edge_link() +
+  geom_node_point(aes(size = population)) +
+  coord_equal() +
+  theme_void()
+```
+
+Now i need to go through each individual agent, select those who are of the right age, and see if they want to leave.
+
+
+Move if migration prob true and food ratio less than 
+```{r}
+test %N>%
+  interact %N>%
+  as_tibble %>%
+  select(-geometry) %>%
+  unnest %>%
+  unnest
+
+
+rbernoulli(1, p = 0.2)
+```
+

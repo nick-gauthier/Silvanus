@@ -15,7 +15,7 @@ allocate_land <- function(households){
 }
 
 calc_land_req <- function(occupants, yield, fallow = TRUE){
-  wheat_req * n_occupants * (1 + seed_proportion) / yield * ifelse(fallow, 2, 1)
+  wheat_req * occupants * (1 + seed_proportion) / yield * ifelse(fallow, 2, 1)
 }
 
 max_cultivable_land <- function(laborers, farming_labor, available_area, fallow = TRUE, type = 'asymptote'){

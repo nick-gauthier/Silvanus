@@ -16,7 +16,6 @@ labor_per_hectare <- 40 # person days required to farm a hectare
 max_labor <- 280 # maximum days per year an individual can devote to farming
 
 
-
 fertility_table <- tibble(
   age = 0:119,
   fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70))
