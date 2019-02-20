@@ -4,7 +4,7 @@
 \alias{allocate_time}
 \title{Household level time allocation}
 \usage{
-allocate_time(households)
+allocate_time(households, total_labor = 1, j = 0.2, k = 0.6)
 }
 \arguments{
 \item{households}{Tibble of household agents.}

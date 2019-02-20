@@ -1,4 +1,11 @@
-# this function takes a settlement (tibble of households), and makes the households do what they need to do
+#' Household Dynamics
+#'
+#' This function takes a settlement (tibble of households), and makes the households do what they need to do.
+#' @param settlements Tibble of settlement agents.
+#' @export
+#' @examples
+#' allocate_time(households)
+
 household_dynamics <- function(settlements){
   unnest(settlements) %>%
     allocate_time %>%

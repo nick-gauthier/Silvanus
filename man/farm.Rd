@@ -2,7 +2,7 @@
 % Please edit documentation in R/farm.R
 \name{farm}
 \alias{farm}
-\title{Functions for creating individuals, households, and settlements}
+\title{Functions for calculating climatic yields and fertility impact on yields}
 \usage{
 farm(households)
 }
@@ -10,8 +10,13 @@ farm(households)
 \item{households}{Tibble of household agents.}
 }
 \description{
-Functions for creating individuals, households, and settlements
+Crop yields are determined by rainfall and soil fertility.
+The climatic potential yield (determined by precipitation) is
+calculated separately from successive local yield reduction
+factors. This allows the climatic potential yield to be easily
+substituted by potential yields from the crop model component
+of an Earth System Model in future simulations.
 }
 \examples{
-allocate_time(households)
+
 }

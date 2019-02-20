@@ -2,10 +2,10 @@
 
 export(allocate_land)
 export(allocate_time)
-export(calc_climatic_yield)
-export(calc_land_req)
 export(create_settlement)
+export(eat)
+export(environmental_dynamics)
 export(farm)
+export(household_dynamics)
 export(infrastructure_performance)
-export(max_cultivable_land)
 export(reproduce)

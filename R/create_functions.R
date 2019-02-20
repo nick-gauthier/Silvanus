@@ -23,8 +23,8 @@ create_household <- function(n_households, n_individuals = 2, wheat_req =  283){
   tibble(household = 1:n_households,
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
-         #yield_memory = max_yield, # fond memories
-         #land = calc_land_req(occupants, yield_memory),
+         yield_memory = max_yield, # fond memories
+         land = calc_land_req(occupants, yield_memory),
          farming_labor = 1,
          food_ratio = 1) %>%
     mutate(individuals = map(occupants, create_individual),
