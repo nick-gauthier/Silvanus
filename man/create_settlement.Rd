@@ -3,21 +3,21 @@
 \name{create_settlement}
 \alias{create_settlement}
 \alias{create_household}
-\alias{create_occupant}
+\alias{create_individual}
 \title{Functions for creating individuals, households, and settlements}
 \usage{
 create_settlement(n_settlements, n_households = 5)
 
-create_household(n_households, n_occupants = 2, wheat_req = 283)
+create_household(n_households, n_individuals = 2, wheat_req = 283)
 
-create_occupant(n_occupants)
+create_individual(occupants)
 }
 \arguments{
 \item{n_settlements}{Number of starting settlement agents}
 
 \item{n_households}{Number of starting household agents}
 
-\item{n_occupants}{Number of individuals in each household, 2 by default.}
+\item{n_individuals}{Number of individuals in each household, 2 by default.}
 
 \item{wheat_req}{kg of wheat to feed a person for 1 year}
 }

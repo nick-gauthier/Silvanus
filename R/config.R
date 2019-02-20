@@ -29,3 +29,4 @@ mortality_table <- tibble(
 
 fertility_shape <- 4.579627
 fertility_scale <- 0.1
+survivor_scale <- 0.1
