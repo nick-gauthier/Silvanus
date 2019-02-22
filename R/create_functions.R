@@ -13,17 +13,18 @@
 
 create_settlement <- function(n_settlements, n_households = 5){
   tibble(settlement = 1:n_settlements,
-         n_households = n_households) %>%
-    mutate(households = map(n_households, create_household))
+         n_households = n_households,
+         area = 1, arable = 1, precipitation = 1, runoff = 0, climatic_yield = calc_climatic_yield(precipitation)) %>% # these parameters should be set from environmentla rasters if available
+    mutate(households = map2(n_households, climatic_yield, create_household))
 }
 
 #' @rdname create_settlement
 
-create_household <- function(n_households, n_individuals = 2, wheat_req =  283){
+create_household <- function(n_households, climatic_yield, n_individuals = 2, wheat_req =  283){
   tibble(household = 1:n_households,
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
-         yield_memory = max_yield, # fond memories
+         yield_memory = climatic_yield, # fond memories
          land = calc_land_req(occupants, yield_memory),
          farming_labor = 1,
          food_ratio = 1) %>%
