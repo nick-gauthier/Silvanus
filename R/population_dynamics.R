@@ -14,6 +14,13 @@
 #' reproduce(households)
 #' die(households)
 
+population_dynamics <- function(households){
+  households %>%
+    reproduce %>%
+    die %>%
+    census
+}
+
 reproduce <- function(households){
   households %>%
     mutate(births = map2_int(individuals, food_ratio, calculate_births),
@@ -48,10 +55,14 @@ die <- function(households){
     left_join(survival_elasticity_table, by = 'age') %>%
     mutate(survival_reduction = pgamma(food_ratio, shape = survivor_shape, scale = survivor_scale),
            survive = rbernoulli(n(), (1 - mortality_rate) * survival_reduction)) %>%
-    filter(survive == T) %>%
+    filter(survive == TRUE) %>%
     mutate(age = age + 1) %>% # happy birthday!
     select(-c(survive, mortality_rate, survivor_shape, survival_reduction)) %>%
-    nest(age, .key = individuals) %>%
+    nest(age, .key = individuals)
+}
+
+census <- function(households){
+  households %>%
     mutate(occupants = map_int(individuals, nrow),
            laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
 }
