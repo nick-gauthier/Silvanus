@@ -6,13 +6,21 @@
 #' problem [@david2015effect] to determine of the proportion of
 #' available time they should devote to each activity so as to
 #' maximize their expected utility.
+#'
+#' @param total_labor
+#' @param j
+#' @param k
+#' @param precipitation
 #' @param households Tibble of household agents.
+#' @param psi
+#' @param epsilon
+#'
 #' @export
 #' @examples
 #' allocate_time(households)
 
 
-allocate_time <- function(households, total_labor = 1, j = 0.2, k = 0.6){
+allocate_time <- function(households, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
   households %>%   #calculate optimum values for the different regions of the step function
     mutate(r1_maintainance = 0,
            r1_utility = yield_memory * land ^ (1 - j - k) * total_labor ^ j * precipitation ^ k,
