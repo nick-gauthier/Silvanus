@@ -34,7 +34,7 @@ library(tidyverse)
 
 Here we'll use the tidyverse family of R packages to setup and run the model. The tidyverse is a set of R packages that share a common API, with a focus on using functional programming to make data analysis clear and human-readable. The basic idea of running a multi-agent simulation in the tidyverse is to represent our entire population of agents as a single data frame, with each agent getting its own row, and each column encoding different agent-specific variables. This framework allows us to take advantage of vectorized functions and underlying C++ code, which together facilitate extremely efficient processing of data frames with millions of rows.
 
-Representing agents as rows in a data frame let's us use another powerful tool -- the nested data frames in the `purrr` package. In a nested data frame, the objects stored in one or more columns can themselves be data frames of an arbitrary size, and so on. So, for example, a data frame of "household" agents can contain columns with simple integer values such as the amount of food that household has or the number of occupants in it.
+Representing agents as rows in a data frame let's us use another powerful tool -- nested data frames. In a nested data frame, the objects stored in one or more columns can themselves be data frames of an arbitrary size, and so on. So, for example, a data frame of "household" agents can contain columns with simple integer values such as the amount of food that household has or the number of occupants in it.
 
 ```{r}
 households <- tibble(household_number = 1:3,
@@ -440,7 +440,7 @@ agents <- tibble(settlement = 1:init_settlements,
               mutate(households = map(households, create.households))
 ```
 
-Make an environment data frame, and join it with the agent data. For now we'll keep it to dummy valus to keep things simple.
+Make an environment data frame, and join it with the agent data. For now we'll keep it to dummy values to keep things simple.
 ```{r message = F}
 environment <- tibble(x = 1, y = 1, area = 1, arable_proportion = 1, precipitation = 1, runoff = .2)
 sim_data <- left_join(agents, environment)

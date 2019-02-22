@@ -194,3 +194,86 @@ test %N>%
 rbernoulli(1, p = 0.2)
 ```
 
+
+
+## land allocation
+```{r}
+environment <- tibble(settlement = 1, area = 1, arable = 1, precipitation = 1, runoff = 0, climatic_yield = calc_climatic_yield(precipitation))
+
+test_pop <- create_settlement(1, n_households = 10)
+
+
+test <- 1:1000 %>%
+  accumulate(~household_dynamics(.x), .init = test_pop)
+
+test %>% bind_rows(.id = 'time') %>%
+  unnest(households) %>%
+  mutate(time = as.numeric(time)) %>%
+  ggplot(aes(time, occupants, group = household)) +
+  geom_line(alpha = .3) +
+  theme_classic()
+
+test %>% bind_rows(.id = 'time') %>%
+  unnest(households) %>%
+  mutate(time = as.numeric(time)) %>%
+  ggplot(aes(time, food_ratio, group = household)) +
+  geom_line(alpha = .3) +
+  theme_classic()
+
+test %>% bind_rows(.id = 'time') %>%
+  unnest(households) %>%
+  mutate(time = as.numeric(time)) %>%
+  ggplot(aes(time, land, group = household)) +
+  geom_line(alpha = .3) +
+  theme_classic()
+
+test %>% bind_rows(.id = 'time') %>%
+  unnest(households) %>%
+  mutate(time = as.numeric(time)) %>%
+  ggplot(aes(time, storage, group = household)) +
+  geom_line(alpha = .3) +
+  theme_classic()
+
+test %>% bind_rows(.id = 'time') %>%
+  unnest(households) %>%
+  mutate(time = as.numeric(time)) %>%
+  ggplot(aes(time, yield_memory, group = household)) +
+  geom_line(alpha = .3) +
+  theme_classic()
+
+test[[500]] %>%
+  unnest %>%
+  unnest %>%
+  ggplot(aes(age)) +
+  geom_histogram(binwidth = 1, center = 0) +
+  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
+  theme_bw()
+
+
+test[[1000]] %>% unnest %>% summarise(sum(land))
+test[[1000]]
+```
+
+## need a way to test if a settlement has become completely depopulated and allow it to repopulate
+possible a reason to have the environental table be separate and repeatedly joined to the population table or something
+
+```{r}
+test_pop %>% 
+  unnest() %>% 
+  mutate(max_land = max_cultivable_land(laborers, farming_labor, area * arable * 100, type = 'unlimited'),
+         land_need = pmin(max_land, calc_land_req(occupants, yield_memory)),# land in hectares to support the household, but no more than the laborer can work
+         new_land = if_else(land_need > land, land_need - land, 0)) %>%
+  group_by(settlement) %>%
+  mutate(available_land = area * arable * 100 - sum(land),
+         total_land_need = sum(new_land)) %>%
+  ungroup %>%
+  mutate(land = if_else(total_land_need > available_land, 
+                        land + new_land / total_land_need * available_land, 
+                        land + new_land)) %>%
+  select(-c(land_need, max_land, new_land, total_land_need, available_land))
+```
+
+```{r}
+plot(max_cultivable_land(5:10, 1, 100))
+```
+
