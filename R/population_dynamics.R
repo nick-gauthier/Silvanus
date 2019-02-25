@@ -21,13 +21,12 @@ population_dynamics <- function(households){
     census
 }
 
+
 reproduce <- function(households){
   households %>%
     mutate(births = map2_int(individuals, food_ratio, calculate_births),
            individuals = map2(individuals, births, give_birth)) %>%
-    select(-births) %>%
-    mutate(occupants = map_int(individuals, nrow),
-           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
+    select(-births)
 }
 
 # internal helper function for reproduce

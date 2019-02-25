@@ -15,8 +15,9 @@ library(tidygraph)
 library(dplyr)
 library(purrr)
 library(tidyr)
-library(ggraph)
 library(ggplot2)
+
+library(ggraph)
 library(raster)
 ```
 
@@ -200,9 +201,38 @@ rbernoulli(1, p = 0.2)
 ```{r}
 environment <- tibble(settlement = 1, area = 1, arable = 1, precipitation = 1, runoff = 0, climatic_yield = calc_climatic_yield(precipitation))
 
-test_pop <- create_settlement(1, n_households = 10)
+test_pop <- create_settlement(1, n_households = 4)
+```
 
+```{r}
+test_pop %>% unnest %>%
+  population_dynamics()
 
+nsim <-70
+test <- 1:nsim %>%
+  accumulate(~population_dynamics(.x), .init = unnest(test_pop))
+
+unnest(test[[nsim]]) %>%
+  group_by(settlement) %>%
+  pull(households)
+```
+
+count laborerers, if there are more thanb 5 people in a house, up to about 15, compare yourself to the most successful person in a random sampling of individuals in your settlement. If the settlement has 50 or fewer, just pick the best, if the settlement has more than 50 people than pick the best from a random sample of 50 people i the settlement.
+
+but what to do once you've picked the model? use food ratio  or something else? or do you not even need to use a model, just have a random chance of fissioning once you're above 5 people? maybe try that to start, add in the more complicated fission fusion dynamics later
+
+for each household
+  if laborers > 5
+    if rbernoulli .5 true
+      change household number of one agent to a new number
+      change that individual's land to land_Req for 1 person
+      change original hoiuseholds land to land - fission land
+      update laborers
+
+So the problem is if we just add a new housheold id based on max current household id plus 1, then if that houshoeld dies another can take its place and it appears to be the same household
+so maybe have the household id's be factors, that way the levels of the factor can be always preserved
+yes! just take max(as.numeric(levels(household))) + 1
+```{r}
 test <- 1:1000 %>%
   accumulate(~household_dynamics(.x), .init = test_pop)
 
@@ -275,5 +305,10 @@ test_pop %>%
 
 ```{r}
 plot(max_cultivable_land(5:10, 1, 100))
+```
+
+
+```{r}
+
 ```
 
