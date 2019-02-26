@@ -19,7 +19,7 @@ population_dynamics <- function(households){
     reproduce %>%
     die %>%
     census %>%
-    fisison %>%
+    fission %>%
     census
 }
 
