@@ -35,7 +35,7 @@ reproduce <- function(households){
 calculate_births <- function(individuals, food_ratio){
   individuals %>%
     left_join(fertility_table, by = 'age') %>%  # find the fertility rate corresponding to age
-    mutate(fertility_reduction = pgamma(food_ratio, shape = fertility_shape, scale = fertility_scale),
+    mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
            baby = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>%  # divide by two to make everyone female ...
     pull(baby) %>%
     sum
@@ -55,7 +55,7 @@ die <- function(households){
     unnest(individuals) %>%
     left_join(mortality_table, by = 'age') %>%
     left_join(survival_elasticity_table, by = 'age') %>%
-    mutate(survival_reduction = pgamma(food_ratio, shape = survivor_shape, scale = survivor_scale),
+    mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survivor_shape, scale = survivor_scale),
            survive = rbernoulli(n(), (1 - mortality_rate) * survival_reduction)) %>%
     filter(survive == TRUE) %>%
     mutate(age = age + 1) %>% # happy birthday!

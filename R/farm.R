@@ -20,7 +20,7 @@ farm <- function(households){
 eat <- function(households){
   households %>%
     mutate(total_cal_req = occupants * wheat_req,
-           food_ratio = pmin(1, (storage + harvest) / total_cal_req),
+           food_ratio = (storage + harvest) / total_cal_req,
            old_storage = storage,
            storage = if_else(total_cal_req <= storage, harvest, pmax(harvest - (total_cal_req - old_storage), 0))) %>%
     select(-old_storage, -total_cal_req, -harvest)
