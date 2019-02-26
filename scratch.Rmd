@@ -10,6 +10,7 @@ testing
 #library(purrr)
 #library(magrittr)
 #library(furrr)
+devtools::load_all()
 library(sf)
 library(tidygraph)
 library(dplyr)
@@ -34,16 +35,6 @@ test_pop <- create_settlement(1)
   theme_bw()
 ```
 
-```{r}
-fertility_elasticity <- readr::read_csv('../North-Africa/data/fertility_data.csv', skip = 1) %>% 
-  dplyr::rename(food_ratio = X, fertility_reduction = Y) %>%
-  mgcv::gam(fertility_reduction ~ s(food_ratio, k = 35), family = mgcv::betar(eps = 0.0001), dat = .)
-
-fertility_elasticity
-
-
-
-```
 
 
 ```{r}
@@ -65,6 +56,8 @@ survival_elasticity_table <- tibble(age = 0:119, survivor_shape = foodlim$mortpa
 
 usethis::use_data(fertility_table, mortality_table, survival_elasticity_table, internal = TRUE, overwrite = TRUE)
 usethis::use_testthat()
+
+plot(fertility_table)
 ```
 
 ```{r}
@@ -75,7 +68,7 @@ ggplot(aes(age, fertility_rate, color = type)) +
   geom_point()
 
 
-plot(pgamma((1:99)/100, shape = 4.579627, scale = .1)
+plot(pgamma((1:99)/100, shape = 4.579627, scale = .1))
 ```
 
 ```{r}
@@ -166,11 +159,13 @@ settlements %E>%
   coord_equal() +
   theme_void()
 ```
+
 ```{r}
 test <- settlements %N>%
   mutate(attractiveness = 10, pop_start = 10)
 
-reduce(1:100, ~interact2(.x), .init = test) %E>%
+
+ reduce(1:100, ~interact2(.x), .init = test) %E>%
   filter(near(distance, 10)) %>%
   ggraph() +
   geom_edge_link() +
@@ -205,19 +200,85 @@ test_pop <- create_settlement(1, n_households = 4)
 ```
 
 ```{r}
-test_pop %>% unnest %>%
-  population_dynamics()
-
 nsim <-70
 test <- 1:nsim %>%
   accumulate(~population_dynamics(.x), .init = unnest(test_pop))
+rm(households, check_fission, old_households, new_households)
+fission <- function(households, fission_rate = 0.2){
+  check_fission <- households %>%
+    unnest %>%
+    mutate(crowded = if_else(laborers > 5 & between(age, 15, 50), TRUE, FALSE),
+           fission = rbernoulli(n(), p = ifelse(crowded, fission_rate, 0))) %>%
+    group_by(settlement, household) %>%
+    mutate(fissioners = sum(fission)) %>%
+    ungroup
+  
+  old_households <- check_fission %>% 
+    filter(fission == FALSE) %>%
+    mutate(land = land - calc_land_need(fissioners, yield_memory))
+  
+  new_households <- check_fission %>% 
+    filter(fission == TRUE)
+  
+  if(nrow(new_households) > 0){
+    new_num <- old_households %>%
+      pull(household) %>%
+      new_hh_num(nrow(new_households))
+    
+    new_households <- new_households %>%
+      mutate(household = new_num,
+             land = calc_land_need(1, yield_memory),
+             storage = 0)
+    out <- bind_rows(old_households, new_households)
+  } else {out <- old_households}
 
-unnest(test[[nsim]]) %>%
-  group_by(settlement) %>%
-  pull(households)
+  out %>%
+    select(-c(crowded, fission, fissioners)) %>%
+    nest(age, .key = 'individuals')
+}
+
+
+test[[70]]  %>%
+  fission %>% census
+new_hh_num(3:5, 0)
+#fissioning individuals leave household
+  #mutate(land = land - calc_land_need(fissioners, yield_memory))
 ```
 
-count laborerers, if there are more thanb 5 people in a house, up to about 15, compare yourself to the most successful person in a random sampling of individuals in your settlement. If the settlement has 50 or fewer, just pick the best, if the settlement has more than 50 people than pick the best from a random sample of 50 people i the settlement.
+```{r}
+mutate(household = pmap_chr(household, fission, fissioners, ~if_else(.2, new_hh_num(household, .3), .1)))
+  nest(c(age, fission, crowded), .key = individuals) %>%
+  group_by(settlement) %>%
+  mutate(household = if_else(fission, new_hh_num(household), household))
+  
+test1 <- 2:5  %>%
+  as.integer %>%
+  max %>%
+  `+`(1) %>%
+  as.character() %>%
+  c(test1, .)
+test1 <- c(test1, new_num)
+
+new_hh_num <- function(x, n){
+  x %>%
+    as.integer %>%
+    max %>%
+    `+`(1:n) %>%
+    as.character
+}
+
+
+new_hh_num(2:6, 5)
+test1
+
+as.integer()
+  as.numeric
+  max(as.numeric(levels(.)))
+  
+tibble(test = list(factor(1:4), factor(5:10))) %>% unnest
+```
+
+count laborerers, if there are more than 5 people in a house, up to about 15, compare yourself to the most successful person in a random sampling of individuals in your settlement. If the settlement has 50 or fewer, just pick the best, if the settlement has more than 50 people than pick the best from a random sample of 50 people i the settlement.
 
 but what to do once you've picked the model? use food ratio  or something else? or do you not even need to use a model, just have a random chance of fissioning once you're above 5 people? maybe try that to start, add in the more complicated fission fusion dynamics later
 
@@ -232,6 +293,7 @@ for each household
 So the problem is if we just add a new housheold id based on max current household id plus 1, then if that houshoeld dies another can take its place and it appears to be the same household
 so maybe have the household id's be factors, that way the levels of the factor can be always preserved
 yes! just take max(as.numeric(levels(household))) + 1
+the problem is,all this nesting and unnesting will not preserve separate facotr levels for each settlement
 ```{r}
 test <- 1:1000 %>%
   accumulate(~household_dynamics(.x), .init = test_pop)

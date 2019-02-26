@@ -18,6 +18,8 @@ population_dynamics <- function(households){
   households %>%
     reproduce %>%
     die %>%
+    census %>%
+    fisison %>%
     census
 }
 
@@ -40,6 +42,7 @@ calculate_births <- function(individuals, food_ratio){
 }
 
 # internal helper function for reproduce
+# this causes an error sometimes ... why?
 give_birth <- function(individuals, births){
   if(births > 0) individuals <- add_row(individuals, age = rep(0, births))
   return(individuals)
@@ -58,6 +61,48 @@ die <- function(households){
     mutate(age = age + 1) %>% # happy birthday!
     select(-c(survive, mortality_rate, survivor_shape, survival_reduction)) %>%
     nest(age, .key = individuals)
+}
+
+new_hh_num <- function(x, n){
+  x %>%
+    as.integer %>%
+    max %>%
+    `+`(1:n) %>%
+    as.character
+}
+
+
+fission <- function(households, fission_rate = 0.2){
+  check_fission <- households %>%
+    unnest %>%
+    mutate(crowded = if_else(laborers > 5 & between(age, 15, 50), TRUE, FALSE),
+           fission = rbernoulli(n(), p = ifelse(crowded, fission_rate, 0))) %>%
+    group_by(settlement, household) %>%
+    mutate(fissioners = sum(fission)) %>%
+    ungroup
+
+  old_households <- check_fission %>%
+    filter(fission == FALSE) %>%
+    mutate(land = land - pmin(calc_land_need(fissioners, yield_memory), land * fissioners / occupants)) # make sure a fissioner doesn't just take the household's whole plot if its too small
+
+  new_households <- check_fission %>%
+    filter(fission == TRUE)
+
+  if(nrow(new_households) > 0){
+    new_num <- old_households %>%
+      pull(household) %>%
+      new_hh_num(nrow(new_households))
+
+    new_households <- new_households %>%
+      mutate(household = new_num,
+             land = pmin(calc_land_need(1, yield_memory), land / occupants),
+             storage = 0)
+    out <- bind_rows(old_households, new_households)
+  } else {out <- old_households}
+
+  out %>%
+    select(-c(crowded, fission, fissioners)) %>%
+    nest(age, .key = 'individuals')
 }
 
 census <- function(households){
