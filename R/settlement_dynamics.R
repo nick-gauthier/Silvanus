@@ -7,16 +7,16 @@
 #'
 #' @examples
 
-interact <- function(net, alpha = 1.15, beta = 5){
+interact <- function(net, alpha = 1.15, beta = 0.5){
   net %E>%
-    mutate(interaction_strength = .N()$attractiveness[to] ^ alpha * exp(-beta * distance))  %N>%
-    mutate(outflow = population / centrality_degree(weights = interaction_strength, mode = 'out', loops = FALSE)) %E>%
-    mutate(flow = .N()$outflow[from] * interaction_strength)
+    mutate(interaction_strength = .N()$population[to] ^ alpha * exp(-beta * log(distance))) %N>%
+    mutate(outflow = centrality_degree(weights = interaction_strength, mode = 'out', loops = FALSE)) %E>%
+    mutate(flow = distance / .N()$outflow[from])
 }
 
 interact2 <- function(net){
   net %E>%
-    mutate(interaction_strength = .N()$attractiveness[to] ^ alpha * exp(-beta * distance))  %N>%
+    mutate(interaction_strength = .N()$attractiveness[to] ^ alpha * exp(-beta * log(distance)))  %N>%
     mutate(outflow = population / centrality_degree(weights = interaction_strength, mode = 'out', loops = FALSE)) %E>%
     mutate(flow = .N()$outflow[from] * interaction_strength) %N>%
     mutate(inflow = centrality_degree(weights = flow, mode = 'in', loops = F),

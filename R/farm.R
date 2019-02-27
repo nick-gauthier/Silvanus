@@ -23,7 +23,7 @@ eat <- function(households){
            food_ratio = (storage + harvest) / total_cal_req,
            old_storage = storage,
            storage = if_else(total_cal_req <= storage, harvest, pmax(harvest - (total_cal_req - old_storage), 0))) %>%
-    select(-old_storage, -total_cal_req, -harvest)
+    select(-old_storage, -total_cal_req, -harvest, -yield)
 }
 
 # farm <- function(households){

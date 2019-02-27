@@ -16,6 +16,7 @@ household_dynamics <- function(settlements){
       eat %>%
       population_dynamics %>%
       nest(household:last(everything()), .key = households) %>%
-      mutate(population = map_dbl(households, ~ sum(.$occupants)))
+      mutate(population = map_dbl(households, ~ sum(.$occupants)),
+             urban_area = 0.175 * population ^ 0.634)
     } else {settlements}
 }
