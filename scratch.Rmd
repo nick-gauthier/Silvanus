@@ -322,56 +322,10 @@ test %>% map(~mutate(.,test = map_dbl(households, nrow))) %>%
            geom_line()
 ```
 
+## migration module
 ```{r}
 migration_prob <- 0.2
-t1 <- test[[nsim]] %>%
-  unnest %>%
-  group_by(settlement) %>%
-  mutate(migrant = if_else((food_ratio < mean(food_ratio) | food_ratio < 1) & 
-                             rbernoulli(n(), migration_prob), TRUE, FALSE) &
-                              laborers > 0) %>%
-  ungroup %>%
-  nest(household:last(everything()), .key = households) %>%
-  mutate(n_migrants = map_dbl(households, ~sum(.$migrant)),
-         migrants = map(households, ~filter(., migrant == TRUE) %>% select(-migrant) %>% mutate(household = NA, land = 0, storage = 0)))
 
-pts <- rbind(c(0,0), c(30,0), c(30,30), c(0,30), c(0,0)) %>%
-  list %>%
-  st_polygon %>%
-  st_sfc %>%
-  st_sample(4)
-
-plot(pts)
-net <- tbl_graph(nodes = tibble(settlement = as.character(1:4), pts = pts),
-          edges = expand.grid(from = 1:4, to = 1:4)) %E>%
-  mutate(distance = st_distance(.N()$pts[from], .N()$pts[to], by_element = TRUE)) %>%
-  filter(!edge_is_loop()) %>%
-  activate('nodes')
-
-
-t2 <- t1 %>% 
-  select(settlement, population, migrants) %>%
-  left_join(net, ., by = 'settlement') %>%
-  interact
-
-t2 %E>%
-  group_by(from) %>%
-  filter(flow == max(flow)) %>%
-  ungroup
-
-t2 %E>%
-  group_by(from) %>%
-  mutate(migrants_from = .N()$migrants[from],
-         n_mig = map_dbl(migrants_from, nrow),
-         out_mig = round_preserve_sum(n_mig * flow / sum(flow))) %>%
-    ungroup %>%
-  arrange(from)
-
-
-t3 / sum(t3) * 5
-round_preserve_sum(t3 / sum(t3) * 5)
-```
-```{r}
 # source https://www.r-bloggers.com/round-values-while-preserve-their-rounded-sum-in-r/
 # original https://biostatmatt.com/archives/2902
 round_preserve_sum <- function(x, digits = 0) {
@@ -382,7 +336,84 @@ round_preserve_sum <- function(x, digits = 0) {
   y[indices] <- y[indices] + 1
   y / up
 }
+
+pts <- rbind(c(0,0), c(30,0), c(30,30), c(0,30), c(0,0)) %>%
+  list %>%
+  st_polygon %>%
+  st_sfc %>%
+  st_sample(4)
+
+net <- tbl_graph(nodes = tibble(settlement = as.character(1:4), pts = pts),
+          edges = expand.grid(from = 1:4, to = 1:4)) %E>%
+  mutate(distance = st_distance(.N()$pts[from], .N()$pts[to], by_element = TRUE)) %>%
+  filter(!edge_is_loop()) %>%
+  activate('nodes')
+
+
+dat <- test[[nsim]] %>%
+  unnest %>%
+  group_by(settlement) %>%
+  mutate(migrant = if_else((food_ratio < mean(food_ratio) | food_ratio < 1) & 
+                             rbernoulli(n(), migration_prob), TRUE, FALSE) &
+                              laborers > 0) %>%
+  ungroup %>%
+  nest(household:last(everything()), .key = households) 
+
+dat2 <- dat %>% mutate(households = map(households, ~filter(., migrant == FALSE) %>% 
+                                          select(-migrant)))# migrants leave old settlement
+dat3 <- dat %>%
+  mutate(migrants = map(households, ~filter(., migrant == TRUE) %>%
+                          select(-migrant) %>% 
+                          mutate(household = NA, land = 0, storage = 0))) %>% 
+  select(settlement, population, migrants) %>%
+  left_join(net, ., by = 'settlement') %>%
+  interact %E>%
+  group_by(from) %>%
+  mutate(migrants_from = .N()$migrants[from],
+         n_mig = map_dbl(migrants_from, nrow),
+         out_mig = round_preserve_sum(n_mig * flow / sum(flow))) %>%
+  ungroup %>%
+  arrange(from) %>%
+  mutate(test = map2(migrants_from, out_mig, ~sample_n(.x, .y))) %>%
+  as_tibble 
+  
+
+d4 <- dat3 %>%
+  select(from, to, out_mig) %>%
+  uncount(out_mig)
+
+d5 <- dat3 %>% 
+  pull(test) %>% 
+  bind_rows
+
+d6 <- select(dat2, settlement, households) # just households
+d7<- select(dat2, -households) # just settlements
+d6 %>%
+  unnest
+  
+bind_cols(d4, d5) %>%
+  mutate(settlement = as.character(to)) %>%
+    select(-c(from, to)) %>%
+  bind_rows(unnest(dat2), .) %>%
+  arrange(settlement, household) %>%
+  group_by(settlement) %>%
+  mutate(n_households = mean(n_households, na.rm = TRUE), # hacky solution to propagate settlement information
+         area = mean(area, na.rm = TRUE),
+         arable = mean(arable, na.rm = TRUE),
+         precipitation = mean(precipitation, na.rm = TRUE),
+         runoff = mean(runoff, na.rm = TRUE),
+         climatic_yield = mean(climatic_yield, na.rm = TRUE),
+         population = mean(population, na.rm = TRUE),
+         urban_area = mean(urban_area, na.rm = TRUE))
+
+## an alternative idea for above script is to split the household and settlement tables, then rejoin at the end
 ```
+
+so we have a tibble of the migrant pool from our settlement
+we know how many people are moving from our settlement to each target
+so we should randomly sample n rows from the migrant table
+  remove those rows from source settlement and migrant pool, add to destination
+
 
 ```{r}
 dat <- rerun(10, 1:nsim %>%
