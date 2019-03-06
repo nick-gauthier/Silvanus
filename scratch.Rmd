@@ -18,6 +18,63 @@ library(tidygraph)
 library(ggraph)
 ```
 
+## Single-settlement demography
+
+First we'll look at the model behavior for just a single settlement, focusing on how equilibrium population density varies based on rainfall and other social and environmental factors.
+
+Start by generating an experimental test population.
+
+```{r}
+environment <- expand.grid(arable = seq(0.3, 1, by = 0.05), precipitation = seq(0.3, 1, 0.05)) 
+
+test_pop <- create_settlement(225, n_households = 4) %>%
+  mutate(arable = environment$arable,
+         precipitation = environment$precipitation,
+         climatic_yield = calc_climatic_yield(precipitation))
+
+test_pop
+```
+
+Now run the simulation for 500 years
+```{r}
+nsim <- 500
+test <- reduce(1:nsim , ~household_dynamics(.x), .init = test_pop)
+
+plan(multicore)
+set.seed(1000)
+test <- test_pop %>%
+  mutate(chunk = rep(1:25, times = 9)) %>%
+  group_by(chunk) %>%
+  nest() %>%
+  mutate(out = future_map(data, ~reduce(1:nsim , ~household_dynamics(.x), .init = .x), .progress = TRUE))
+
+test1 <- test %>%
+  select(-data) %>%
+  unnest %>%
+  select(settlement, arable, precipitation, population) %>%
+  full_join(environment) %>%
+  mutate(population = if_else(is.na(population), 0, population))
+
+test1 %>%
+  filter(near(precipitation, 1)) %>%
+  ggplot(aes(arable, population)) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+
+test1 %>%
+  filter(near(arable, 1)) %>%
+  ggplot(aes(precipitation, population)) +
+  geom_point()
+
+m1 <- mgcv::gam(population ~ s(precipitation) + s(arable), data = test1)
+m2 <- mgcv::gam(population ~ te(precipitation, arable) , data = test1)
+
+plot(m1)
+plot(m2, scheme = 1)
+AIC(m1,m2)
+```
+So from this we see a linear increase in equilibrium population with increase in arable land, and a nonlinear increase with precipitation. Nothing terribly surprising here.
+
 ```{r}
 test_pop <- create_settlement(1)
 
@@ -161,12 +218,7 @@ rbernoulli(1, p = 0.2)
 
 
 ## land allocation, fissioning
-```{r}
-environment <- tibble(settlement = 1, area = 1, arable = 1, precipitation = 1, runoff = 0, climatic_yield = calc_climatic_yield(precipitation))
 
-
-test_pop <- create_settlement(4, n_households = 4)
-```
 
 ```{r}
 nsim <-70
