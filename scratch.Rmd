@@ -47,7 +47,9 @@ test <- test_pop %>%
   group_by(chunk) %>%
   nest() %>%
   mutate(out = future_map(data, ~reduce(1:nsim , ~household_dynamics(.x), .init = .x), .progress = TRUE))
+```
 
+```{r}
 test1 <- test %>%
   select(-data) %>%
   unnest %>%
@@ -76,14 +78,32 @@ AIC(m1,m2)
 So from this we see a linear increase in equilibrium population with increase in arable land, and a nonlinear increase with precipitation. Nothing terribly surprising here.
 
 ```{r}
-test_pop <- create_settlement(1)
-
 1:500 %>%
   reduce(~mutate(., households = map(households, ~reproduce(.) %>% die)), .init = test_pop) %>%
   unnest %>%
   unnest %>%
   ggplot(aes(age)) +
   geom_histogram(binwidth = 1, center = 0) +
+  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
+  theme_bw()
+```
+
+Now just run 1 settlement with 1 arable and precip, repeat several times, then end with the age distribution.
+```{r}
+test_pop2 <- create_settlement(1, n_household = 4)
+set.seed(1000)
+test3 <- 1:100 %>%
+  future_map(~accumulate(1:600, ~household_dynamics(.x), .init = test_pop2), .progress = TRUE)
+
+test %>%
+  select(-data) %>%
+  unnest %>%
+  filter(arable == 1, precipitation == 1) %>%
+  unnest %>%
+  unnest %>%
+  unnest %>%
+  ggplot(aes(age)) +
+  geom_histogram(binwidth = 5, center = 0) +
   geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
   theme_bw()
 ```
