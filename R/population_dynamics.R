@@ -1,4 +1,4 @@
-#' Individual-level death and reproduction according to age-specific, food-limimited fertility and mortality rates
+#' Individual-level death and reproduction according to age-specific, food-limited fertility and mortality rates
 #'
 #' This function allows household agents to add or remove individual
 #' agents via birth and death. The tibble of households is first unnested
@@ -23,23 +23,22 @@ population_dynamics <- function(households){
     census
 }
 
-
 reproduce <- function(households){
   households %>%
-    mutate(births = map2_int(individuals, food_ratio, calculate_births),
-           individuals = map2(individuals, births, give_birth)) %>%
+    unnest(individuals) %>%
+    left_join(fertility_table, by = 'age') %>%  # find the fertility rate corresponding to age
+    mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
+           baby = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>%  # divide by two to make everyone female .. .
+    group_by(settlement, household) %>%
+    mutate(births = sum(baby)) %>%
+    ungroup %>%
+    select(-c(fertility_rate, fertility_reduction, baby)) %>%
+    nest(age, .key = individuals) %>%
+    mutate(individuals = map2(individuals, births, give_birth)) %>%
     select(-births)
 }
 
-# internal helper function for reproduce
-calculate_births <- function(individuals, food_ratio){
-  individuals %>%
-    left_join(fertility_table, by = 'age') %>%  # find the fertility rate corresponding to age
-    mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
-           baby = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>%  # divide by two to make everyone female ...
-    pull(baby) %>%
-    sum
-}
+#still a fertility reduction of 0.981 when food ratio is 1
 
 # internal helper function for reproduce
 # this causes an error sometimes ... why?

@@ -91,7 +91,13 @@ So from this we see a linear increase in equilibrium population with increase in
 Now just run 1 settlement with 1 arable and precip, repeat several times, then end with the age distribution.
 ```{r}
 test_pop2 <- create_settlement(1, n_household = 4)
+library(profvis)
 set.seed(1000)
+test_time2 <- system.time(accumulate(1:600, ~household_dynamics(.x), .init = test_pop2))
+
+set.seed(1000)
+profvis(test4 <- accumulate(1:600, ~household_dynamics(.x), .init = test_pop2))
+
 test3 <- 1:100 %>%
   future_map(~accumulate(1:600, ~household_dynamics(.x), .init = test_pop2), .progress = TRUE)
 
