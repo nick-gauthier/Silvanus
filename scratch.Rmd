@@ -18,7 +18,7 @@ library(tidygraph)
 library(ggraph)
 ```
 
-## Single-settlement demography
+## Single population demography
 
 First we'll create two test populations of ten people each, one with random ages and the other with only 25 year olds.
 
@@ -45,6 +45,7 @@ ggplot(demographic_sim, aes(age)) +
   theme_bw()
 ```
 
+# Single settlement equilibria
 
 First we'll look at the model behavior for just a single settlement, focusing on how equilibrium population density varies based on rainfall and other social and environmental factors.
 

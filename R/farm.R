@@ -10,7 +10,7 @@
 #' @examples
 #'
 
-farm <- function(households){
+farm <- function(households, climatic_yield = calc_climatic_yield(1)){
   households %>%
     mutate(yield = climatic_yield,
            yield_memory = yield,

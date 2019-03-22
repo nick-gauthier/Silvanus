@@ -12,7 +12,7 @@ fission <- function(households, fission_rate = 0.2){
     unnest %>%
     mutate(crowded = if_else(laborers > 5 & between(age, 15, 50), TRUE, FALSE),
            fission = rbernoulli(n(), p = ifelse(crowded, fission_rate, 0))) %>%
-    group_by(settlement, household) %>%
+    group_by(household) %>%
     mutate(fissioners = sum(fission)) %>%
     ungroup
 
