@@ -20,13 +20,38 @@ library(ggraph)
 
 ## Single-settlement demography
 
+First we'll create two test populations of ten people each, one with random ages and the other with only 25 year olds.
+
+```{r}
+set.seed(1000)
+test_pop1 <- create_individuals(10, random = FALSE)
+test_pop2 <- create_individuals(10, random = TRUE)
+```
+
+Then run a 1,000 year simulation from each of the two initial populations.
+```{r}
+nsim <- 600
+
+demographic_sim <- reduce(1:nsim, ~population_dynamics(.x), .init = test_pop1)
+```
+
+Look at the results.
+
+```{r, echo = FALSE}
+ggplot(demographic_sim, aes(age)) +
+  geom_histogram(binwidth = 1, center = 0) +
+  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
+  labs(title = 'Age distribution after 700 years', subtitle = 'Red line = average age') +
+  theme_bw()
+```
+
+
 First we'll look at the model behavior for just a single settlement, focusing on how equilibrium population density varies based on rainfall and other social and environmental factors.
 
 Start by generating an experimental test population.
 
 ```{r}
-environment <- expand.grid(arable = seq(0.3, 1, by = 0.05), precipitation = seq(0.3, 1, 0.05)) 
-
+environment <- crossing(arable = seq(0.3, 1, by = 0.05), precipitation = seq(0.3, 1, 0.05))
 test_pop <- create_settlement(225, n_households = 4) %>%
   mutate(arable = environment$arable,
          precipitation = environment$precipitation,
@@ -34,6 +59,8 @@ test_pop <- create_settlement(225, n_households = 4) %>%
 
 test_pop
 ```
+
+
 
 Now run the simulation for 500 years
 ```{r}
@@ -98,10 +125,14 @@ test_time2 <- system.time(accumulate(1:600, ~household_dynamics(.x), .init = tes
 set.seed(1000)
 profvis(test4 <- accumulate(1:600, ~household_dynamics(.x), .init = test_pop2))
 
-test3 <- 1:100 %>%
+test3 <- 1:20 %>%
   future_map(~accumulate(1:600, ~household_dynamics(.x), .init = test_pop2), .progress = TRUE)
 
-test %>%
+test3 %>%
+  map_dfr(~bind_rows(., .id = 'time') %>% select(time, population), .id = 'rep') %>%
+  ggplot(aes(as.numeric(time), population, group = rep)) +
+  geom_line()
+test3 %>%
   select(-data) %>%
   unnest %>%
   filter(arable == 1, precipitation == 1) %>%
@@ -114,12 +145,13 @@ test %>%
   theme_bw()
 ```
 
-
+should test to see if all the dplyr mutates and joins and whatever are faster or slower with more columns
 
 ```{r}
 foodlim <- readr::read_csv('../../Foodlim_R_code/demog_vectors.csv')
 ```
 
+This is where the default demographic data that comes with the package gets made. Need to improve.
 ```{r}
 fertility_table <- tibble(
   age = 0:119,
@@ -128,12 +160,12 @@ fertility_table <- tibble(
 
 mortality_table <- tibble(
   age = 0:119,
-  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5))
+  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5)),
+  survivor_shape = foodlim$mortparms
 )
 
-survival_elasticity_table <- tibble(age = 0:119, survivor_shape = foodlim$mortparms)
 
-usethis::use_data(fertility_table, mortality_table, survival_elasticity_table, internal = TRUE, overwrite = TRUE)
+usethis::use_data(fertility_table, mortality_table, internal =  TRUE, overwrite = TRUE)
 usethis::use_testthat()
 
 plot(fertility_table)

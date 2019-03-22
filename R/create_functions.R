@@ -11,16 +11,16 @@
 #' create_household(4)
 #' create_occupant(4)
 
-create_settlement <- function(n_settlements, n_households = 5){
+create_settlements <- function(n_settlements, n_households = 5){
   tibble(settlement = as.character(1:n_settlements),
          n_households = n_households,
          area = 1, arable = 1, precipitation = 1, runoff = 0, climatic_yield = calc_climatic_yield(precipitation)) %>% # these parameters should be set from environmentla rasters if available
-    mutate(households = map2(n_households, climatic_yield, create_household))
+    mutate(households = map2(n_households, climatic_yield, create_households))
 }
 
 #' @rdname create_settlement
 
-create_household <- function(n_households, climatic_yield, n_individuals = 2, wheat_req =  283){
+create_households <- function(n_households, climatic_yield, n_individuals = 2, wheat_req =  283){
   tibble(household = as.character(1:n_households),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
@@ -28,12 +28,14 @@ create_household <- function(n_households, climatic_yield, n_individuals = 2, wh
          land = calc_land_need(occupants, yield_memory),
          farming_labor = 1,
          food_ratio = 1) %>%
-    mutate(individuals = map(occupants, create_individual),
+    mutate(individuals = map(occupants, create_individuals, headless = FALSE),
            laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
 }
 
 #' @rdname create_settlement
 
-create_individual <- function(occupants){
-  tibble(age = rep(25, occupants)) # occupants start off at age 25
+create_individuals <- function(occupants = 5, random = FALSE, age = 25){
+  if(random == FALSE){
+    tibble(age = rep(age, occupants)) # if random is FALSE, set ages to age
+  } else tibble(age = sample.int(80, size = occupants, replace = TRUE)) # if random TRUE, random ages under 80
 }
