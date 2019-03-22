@@ -7,8 +7,8 @@ output: html_notebook
 testing
 ```{r}
 devtools::load_all()
-library(raster)
-library(sf)
+#library(raster)
+#library(sf)
 library(dplyr)
 library(purrr)
 library(furrr)
@@ -46,6 +46,51 @@ ggplot(demographic_sim, aes(age)) +
 ```
 
 # Single settlement equilibria
+
+```{r}
+test_pop3 <- create_households(3)
+
+farming_sim <- accumulate(1:nsim, ~household_dynamics(.x), .init = test_pop3)
+
+profvis::profvis(accumulate(1:nsim, ~household_dynamics(.x), .init = test_pop3))
+```
+
+
+```{r}
+farming_sim %>%
+  bind_rows(.id = 'time') %>%
+  group_by(time) %>%
+  summarise(population = sum(occupants)) %>%
+  ggplot(aes(as.numeric(time), population)) +
+  geom_line()
+```
+
+And we can look at the age distribution of the population in a food limited environment.
+```{r}
+farming_sim %>%
+  .[[601]] %>%
+  unnest %>%
+  ggplot(aes(age)) +
+  geom_histogram()
+```
+
+Let's repeat this 20 times.
+```{r}
+plan(multicore)
+farming_sim2 <- 1:20 %>%
+  future_map(~ accumulate(1:nsim, ~household_dynamics(.x), .init = test_pop3), .progress = TRUE)
+```
+```{r}
+farming_sim2 %>%
+  map_dfr(~bind_rows(., .id = 'time'), .id = 'rep') %>%
+  group_by(rep, time) %>%
+  summarise(population = sum(occupants)) %>%
+  ggplot(aes(as.numeric(time), population)) +
+  geom_line(aes(group = rep), alpha = 0.5) +
+  geom_smooth() +
+  theme_classic()
+```
+
 
 First we'll look at the model behavior for just a single settlement, focusing on how equilibrium population density varies based on rainfall and other social and environmental factors.
 
@@ -133,6 +178,7 @@ test3 %>%
   map_dfr(~bind_rows(., .id = 'time') %>% select(time, population), .id = 'rep') %>%
   ggplot(aes(as.numeric(time), population, group = rep)) +
   geom_line()
+
 test3 %>%
   select(-data) %>%
   unnest %>%
@@ -161,12 +207,13 @@ fertility_table <- tibble(
 
 mortality_table <- tibble(
   age = 0:119,
-  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5)),
+  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 
+                                                 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5)),
   survivor_shape = foodlim$mortparms
 )
 
-
-usethis::use_data(fertility_table, mortality_table, internal =  TRUE, overwrite = TRUE)
+life_table <- left_join(fertility_table, mortality_table)
+usethis::use_data(life_table, internal =  TRUE, overwrite = TRUE)
 usethis::use_testthat()
 
 plot(fertility_table)
