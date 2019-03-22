@@ -13,27 +13,31 @@
 #' @examples
 #' population_dynamics(individuals, food_ratio = 1)
 
-population_dynamics <- function(individuals, food_ratio = 1){
+population_dynamics <- function(individuals, food_ratio){
   if (nrow(individuals) > 0) {
     individuals %>%
-      left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
-      reproduce(food_ratio) %>%
-      die(food_ratio) %>%
-      mutate(age = age + 1L) %>% # happy birthday!
-      select(-c(fertility_rate, mortality_rate, survivor_shape, survival_reduction, survived))
+      calculate_vital_rates %>%
+      reproduce %>%
+      die %>%
+      mutate(age = age + 1L) # happy birthday!
   } else individuals
 }
 
-
-#still a fertility reduction of 0.981 when food ratio is 1. fix.
-reproduce <- function(individuals, food_ratio){
-  births <- individuals %>%
+calculate_vital_rates <- function(individuals, food_ratio = 1){
+  individuals %>%
+    left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
     mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
-           reproduced = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>%  # divide by two to make everyone female
+           survival_reduction = pgamma(pmin(1, food_ratio), shape = survivor_shape, scale = survivor_scale))
+}
+#still a fertility reduction of 0.981 when food ratio is 1. fix.
+
+reproduce <- function(individuals){
+  births <- individuals %>%
+    mutate(reproduced = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>%  # divide by two to make everyone female
     pull(reproduced) %>%
     sum
 
-  life_table %>% # give birth to new individual by repeating the 0 age row of the life table and binding back
+  life_table %>%
     slice(rep.int(1L, times = births)) %>%
     bind_rows(individuals, .)
 }
@@ -41,10 +45,10 @@ reproduce <- function(individuals, food_ratio){
 
 #' @rdname reproduce
 
-die <- function(individuals, food_ratio){
+die <- function(individuals, food_ratio = 1){
   individuals %>%
-    mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survivor_shape, scale = survivor_scale),
-           survived = rbernoulli(n(), (1 - mortality_rate) * survival_reduction)) %>% # convert mortality rate to survival rate
-    filter(survived == TRUE)
+    mutate(survived = rbernoulli(n(), (1 - mortality_rate) * survival_reduction)) %>% # convert mortality rate to survival rate
+    filter(survived == TRUE) %>%
+    select(-c(fertility_rate, fertility_reduction, mortality_rate, survivor_shape, survival_reduction, survived))
 }
 

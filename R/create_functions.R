@@ -34,7 +34,7 @@ create_households <- function(n_households, yield_memory = calc_climatic_yield(1
 
 #' @rdname create_settlement
 
-create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25L){
+create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25){
   if(random_ages == FALSE){
     tibble(age = rep(age, occupants)) # if random is FALSE, set ages to age
   } else tibble(age = sample.int(80, size = occupants, replace = TRUE)) # if random TRUE, random ages under 80
