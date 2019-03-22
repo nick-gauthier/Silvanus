@@ -33,8 +33,10 @@ census <- function(households){
 
 new_hh_num <- function(x, n){
   x %>%
+    pull(household) %>%
+    levels %>%
     as.integer %>%
     max %>%
     `+`(1:n) %>%
-    as.character
+    as.factor
 }

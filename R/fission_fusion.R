@@ -24,15 +24,14 @@ fission <- function(households, fission_rate = 0.2){
     filter(fission == TRUE)
 
   if(nrow(new_households) > 0){
-    new_num <- old_households %>%
-      pull(household) %>%
-      new_hh_num(nrow(new_households))
+    new_hh <- new_hh_num(old_households, nrow(new_households))
 
     new_households <- new_households %>%
-      mutate(household = new_num,
+      mutate(household = new_hh,
              land = pmin(calc_land_need(1, yield_memory), land / occupants),
              storage = 0)
-    out <- bind_rows(old_households, new_households)
+    out <- bind_rows(old_households, new_households) %>%
+      mutate(household = as.factor(household)) # binding converts factors to characters so need to convert back
   } else {out <- old_households}
 
   out %>%
