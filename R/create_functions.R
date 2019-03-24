@@ -21,7 +21,7 @@ create_settlements <- function(n_settlements, n_households = 5){
 #' @rdname create_settlement
 
 create_households <- function(n_households, yield_memory = calc_climatic_yield(1), n_individuals = 4){
-  tibble(household = as.character(1:n_households),
+  tibble(household = as.factor(1:n_households),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
          yield_memory = yield_memory, # fond memories
