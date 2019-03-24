@@ -8,14 +8,15 @@ testing
 ```{r}
 devtools::load_all()
 #library(raster)
-#library(sf)
+library(sf)
 library(dplyr)
 library(purrr)
 library(furrr)
 library(tidyr)
+library(tidygraph)
 library(ggplot2)
-#library(tidygraph)
-#library(ggraph)
+library(ggraph)
+library(profvis)
 ```
 
 ## Single population demography
@@ -62,11 +63,10 @@ ggplot(demographic_sim2, aes(age)) +
 ```
 
 ```{r}
-library(profvis)
 profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_pop1))
 ```
 
-# Single settlement equilibria
+# Single settlement dynamics
 
 ```{r}
 test_pop3 <- create_households(3)
@@ -92,9 +92,27 @@ farming_sim %>%
   ggplot(aes(age)) +
   geom_histogram()
 ```
+```{r}
+# next step is to tweak micro behavior so this is asymptotic rather than piecewise
+farming_sim %>%
+  bind_rows(.id = 'time') %>%
+  group_by(time) %>%
+  summarise(population = sum(occupants), land = sum(land)) %>%
+  ggplot(aes(population, land)) +
+  geom_line(alpha = .2) +
+  geom_point(aes(color = as.numeric(time))) +
+  scale_color_viridis_c() +
+  theme_classic() +
+  labs(title = 'Coevolution of population and cultivated area')
+```
+
+
+```{r}
+profvis(accumulate(1:100, ~household_dynamics(.x), .init = test_pop3))
+```
 
 Let's repeat this 20 times.
-```{r}
+```{r, warning = FALSE}
 nsim <- 500
 plan(multicore)
 farming_sim2 <- 1:50 %>%
@@ -293,10 +311,10 @@ usethis::use_testthat()
 plot(fertility_table)
 ```
 
+# Migration
+
 
 ```{r}
-
-
 hex <- rbind(c(0,0), c(100,0), c(100,100), c(0,100), c(0,0)) %>%
   list %>%
   st_polygon %>%
@@ -379,294 +397,27 @@ test <- settlements %N>%
   theme_void()
 ```
 
-Now i need to go through each individual agent, select those who are of the right age, and see if they want to leave.
-
-
-Move if migration prob true and food ratio less than 
+AT some point it'd be nice to include like 10-20 percent of your food ratio, etc, as a function of the flows from other places. or maybe the flows from other places make up a pool of resources at the settlement level that the households divide amongst themselves
 ```{r}
-test %N>%
-  interact %N>%
-  as_tibble %>%
-  select(-geometry) %>%
-  unnest %>%
-  unnest
+test <- accumulate(1:500, ~settlement_dynamics(.x), .init = create_settlements(4))
 
 
-rbernoulli(1, p = 0.2)
-```
-
-
-
-## land allocation, fissioning
-
-
-```{r}
-nsim <-70
-test <- 1:nsim %>%
-  accumulate(~population_dynamics(.x), .init = unnest(test_pop))
-
-
-rm(households, check_fission, old_households, new_households)
-fission <- function(households, fission_rate = 0.2){
-  check_fission <- households %>%
-    unnest %>%
-    mutate(crowded = if_else(laborers > 5 & between(age, 15, 50), TRUE, FALSE),
-           fission = rbernoulli(n(), p = ifelse(crowded, fission_rate, 0))) %>%
-    group_by(settlement, household) %>%
-    mutate(fissioners = sum(fission)) %>%
-    ungroup
-  
-  old_households <- check_fission %>% 
-    filter(fission == FALSE) %>%
-    mutate(land = land - calc_land_need(fissioners, yield_memory))
-  
-  new_households <- check_fission %>% 
-    filter(fission == TRUE)
-  
-  if(nrow(new_households) > 0){
-    new_num <- old_households %>%
-      pull(household) %>%
-      new_hh_num(nrow(new_households))
-    
-    new_households <- new_households %>%
-      mutate(household = new_num,
-             land = calc_land_need(1, yield_memory),
-             storage = 0)
-    out <- bind_rows(old_households, new_households)
-  } else {out <- old_households}
-
-  out %>%
-    select(-c(crowded, fission, fissioners)) %>%
-    nest(age, .key = 'individuals')
-}
-
-
-test[[70]]  %>%
-  fission %>% census
-new_hh_num(3:5, 0)
-#fissioning individuals leave household
-  #mutate(land = land - calc_land_need(fissioners, yield_memory))
-```
-
-```{r}
-mutate(household = pmap_chr(household, fission, fissioners, ~if_else(.2, new_hh_num(household, .3), .1)))
-  nest(c(age, fission, crowded), .key = individuals) %>%
-  group_by(settlement) %>%
-  mutate(household = if_else(fission, new_hh_num(household), household))
-  
-test1 <- 2:5  %>%
-  as.integer %>%
-  max %>%
-  `+`(1) %>%
-  as.character() %>%
-  c(test1, .)
-test1 <- c(test1, new_num)
-
-new_hh_num <- function(x, n){
-  x %>%
-    as.integer %>%
-    max %>%
-    `+`(1:n) %>%
-    as.character
-}
-
-
-new_hh_num(2:6, 5)
-test1
-
-as.integer()
-  as.numeric
-  max(as.numeric(levels(.)))
-  
-tibble(test = list(factor(1:4), factor(5:10))) %>% unnest
-```
-
-count laborerers, if there are more than 5 people in a house, up to about 15, compare yourself to the most successful person in a random sampling of individuals in your settlement. If the settlement has 50 or fewer, just pick the best, if the settlement has more than 50 people than pick the best from a random sample of 50 people i the settlement.
-
-but what to do once you've picked the model? use food ratio  or something else? or do you not even need to use a model, just have a random chance of fissioning once you're above 5 people? maybe try that to start, add in the more complicated fission fusion dynamics later
-
-for each household
-  if laborers > 5
-    if rbernoulli .5 true
-      change household number of one agent to a new number
-      change that individual's land to land_Req for 1 person
-      change original hoiuseholds land to land - fission land
-      update laborers
-
-So the problem is if we just add a new household id based on max current household id plus 1, then if that houshoeld dies another can take its place and it appears to be the same household
-so maybe have the household id's be factors, that way the levels of the factor can be always preserved
-yes! just take max(as.numeric(levels(household))) + 1
-the problem is,all this nesting and unnesting will not preserve separate facotr levels for each settlement
-```{r}
-nsim <- 400
-test <- 1:nsim %>%
-  accumulate(~household_dynamics(.x), .init = test_pop)
-
-test %>% bind_rows(.id = 'time') %>%
-  unnest(households) %>%
+test %>%
+  map_dfr(~as_tibble(.x) %>% select(settlement, population), .id = 'time') %>%
   mutate(time = as.numeric(time)) %>%
-  ggplot(aes(time, occupants, group = interaction(household, settlement))) +
-  geom_line(alpha = .3) +
+  ggplot(aes(time, population, group = settlement, color = settlement)) +
+  geom_line() +
+  scale_color_viridis_d() +
   theme_classic()
-
-test %>% bind_rows(.id = 'time') %>%
-  unnest(households) %>%
-  mutate(time = as.numeric(time)) %>%
-  ggplot(aes(time, food_ratio, group = interaction(household, settlement))) +
-  geom_line(alpha = .3) +
-  theme_classic()
-
-test %>% bind_rows(.id = 'time') %>%
-  unnest(households) %>%
-  mutate(time = as.numeric(time)) %>%
-  ggplot(aes(time, land, group = interaction(household, settlement))) +
-  geom_line(alpha = .3) +
-  theme_classic()
-
-test %>% bind_rows(.id = 'time') %>%
-  unnest(households) %>%
-  mutate(time = as.numeric(time)) %>%
-  ggplot(aes(time, storage, group = interaction(household, settlement))) +
-  geom_line(alpha = .3) +
-  theme_classic()
-
-test[[nsim]] %>%
-  unnest %>%
-  unnest %>%
-  ggplot(aes(age)) +
-  geom_histogram(binwidth = 1, center = 0) +
-  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
-  theme_bw()
 ```
 
-```{r}
-test  %>% bind_rows(.id = 'time') %>%
-  ggplot(aes(as.numeric(time), population, group = settlement)) +
-           geom_line()
-
-test %>% bind_rows(.id = 'time') %>%
-  ggplot(aes(as.numeric(time), urban_area, group = settlement)) +
-           geom_line()
-
-test %>% map(~mutate(.,test = map_dbl(households, nrow))) %>%
-  bind_rows(.id = 'time') %>%
-  ggplot(aes(as.numeric(time), test, group = settlement)) +
-           geom_line()
-```
-
-## migration module
-```{r}
-migration_prob <- 0.2
-
-# source https://www.r-bloggers.com/round-values-while-preserve-their-rounded-sum-in-r/
-# original https://biostatmatt.com/archives/2902
-round_preserve_sum <- function(x, digits = 0) {
-  up <- 10 ^ digits
-  x <- x * up
-  y <- floor(x)
-  indices <- tail(order(x-y), round(sum(x)) - sum(y))
-  y[indices] <- y[indices] + 1
-  y / up
-}
-
-pts <- rbind(c(0,0), c(30,0), c(30,30), c(0,30), c(0,0)) %>%
-  list %>%
-  st_polygon %>%
-  st_sfc %>%
-  st_sample(4)
-
-net <- tbl_graph(nodes = tibble(settlement = as.character(1:4), pts = pts),
-          edges = expand.grid(from = 1:4, to = 1:4)) %E>%
-  mutate(distance = st_distance(.N()$pts[from], .N()$pts[to], by_element = TRUE)) %>%
-  filter(!edge_is_loop()) %>%
-  activate('nodes')
 
 
-dat <- test[[nsim]] %>%
-  unnest %>%
-  group_by(settlement) %>%
-  mutate(migrant = if_else((food_ratio < mean(food_ratio) | food_ratio < 1) & 
-                             rbernoulli(n(), migration_prob), TRUE, FALSE) &
-                              laborers > 0) %>%
-  ungroup %>%
-  nest(household:last(everything()), .key = households) 
 
-dat2 <- dat %>% mutate(households = map(households, ~filter(., migrant == FALSE) %>% 
-                                          select(-migrant)))# migrants leave old settlement
-dat3 <- dat %>%
-  mutate(migrants = map(households, ~filter(., migrant == TRUE) %>%
-                          select(-migrant) %>% 
-                          mutate(household = NA, land = 0, storage = 0))) %>% 
-  select(settlement, population, migrants) %>%
-  left_join(net, ., by = 'settlement') %>%
-  interact %E>%
-  group_by(from) %>%
-  mutate(migrants_from = .N()$migrants[from],
-         n_mig = map_dbl(migrants_from, nrow),
-         out_mig = round_preserve_sum(n_mig * flow / sum(flow))) %>%
-  ungroup %>%
-  arrange(from) %>%
-  mutate(test = map2(migrants_from, out_mig, ~sample_n(.x, .y))) %>%
-  as_tibble 
-  
 
-d4 <- dat3 %>%
-  select(from, to, out_mig) %>%
-  uncount(out_mig)
 
-d5 <- dat3 %>% 
-  pull(test) %>% 
-  bind_rows
 
-# no migrants
-d6 <- select(dat2, settlement, households) # just households
-d7 <- select(dat2, -households) # just settlements
-d6 %>%
-  unnest
-
-  
-bind_cols(d4, d5) %>%
-  mutate(settlement = as.character(to)) %>%
-    select(-c(from, to)) %>%
-  bind_rows(unnest(d6), .) %>%
-  arrange(settlement, household) %>%
-  group_by(settlement) %>%
-  mutate(n_households = mean(n_households, na.rm = TRUE), # hacky solution to propagate settlement information
-         area = mean(area, na.rm = TRUE),
-         arable = mean(arable, na.rm = TRUE),
-         precipitation = mean(precipitation, na.rm = TRUE),
-         runoff = mean(runoff, na.rm = TRUE),
-         climatic_yield = mean(climatic_yield, na.rm = TRUE),
-         population = mean(population, na.rm = TRUE),
-         urban_area = mean(urban_area, na.rm = TRUE))
-
-## an alternative idea for above script is to split the household and settlement tables, then rejoin at the end
-```
-
-the tricky issue is, once again, the problem with the household ids. I can't just add the new household id's after joining, because then it'd overwerite all the existing  ids
-
-so maybe instead we need a master list of all Id's? no, there's still the problem of where to put that list and what to do with it. maybe an external vector of all the used ids, to be used as the levels for the household factor, and we keep that in the top level of the functions and use it for releveling the household ID vector whenever we need to
-
-OR, have households be unique with respect to both settlement and household id. that's basically the current system ... and there's actually not really a big issue. but it does just kick the can of overlapping household ids down from the simulation level to the settlement level ... but its still a problem .... plus if we really did have universal ids for housheolds then they could move between settlements much more easily.
-
-Ok, so its decided, we need a universal, simulation-wide collection of household IDs that we use to ensure no duplicate names. so we start by giving names to all the households, or ids at least, then building a vector in the household dynamics function that keeps track of all the names. so the question is what level of the functions to define this on, and what to do from there .... or maybe at the settlement level have the unique id's and use them as a nested data frame ... YES! thats it. ok glad we had this convo
-
-```{r}
-dat <- rerun(10, 1:nsim %>%
-  accumulate(~household_dynamics(.x), .init = test_pop))
-
-dat %>% map(~map(.,count_pop) %>% bind_rows(.id = 'time')) %>% bind_rows(.id = 'rep') %>%
-  ggplot(aes(as.numeric(time), population, group = rep)) +
-           geom_line(alpha = .5) +
-  theme_bw()
-```
-
-```{r}
-test[[nsim]] %>%
-  mutate(population = map_dbl(households, ~pull(., occupants) %>% sum),
-         urban_area = 0.175 * population ^ 0.634)
-```
-
+sublinear scaling of area to population in a settlement
 plot population vs urban area. so the maximum settlement we can hold in 1km has 25,000 people. beyond that we need more than one 1km tile
 ```{r}
 tibble(population = seq(1,100000, 1000),
@@ -677,24 +428,3 @@ tibble(population = seq(1,100000, 1000),
 
 ## need a way to test if a settlement has become completely depopulated and allow it to repopulate
 possible a reason to have the environental table be separate and repeatedly joined to the population table or something
-
-```{r}
-test_pop %>% 
-  unnest() %>% 
-  mutate(max_land = max_cultivable_land(laborers, farming_labor, area * arable * 100, type = 'unlimited'),
-         land_need = pmin(max_land, calc_land_req(occupants, yield_memory)),# land in hectares to support the household, but no more than the laborer can work
-         new_land = if_else(land_need > land, land_need - land, 0)) %>%
-  group_by(settlement) %>%
-  mutate(available_land = area * arable * 100 - sum(land),
-         total_land_need = sum(new_land)) %>%
-  ungroup %>%
-  mutate(land = if_else(total_land_need > available_land, 
-                        land + new_land / total_land_need * available_land, 
-                        land + new_land)) %>%
-  select(-c(land_need, max_land, new_land, total_land_need, available_land))
-```
-
-```{r}
-plot(max_cultivable_land(5:10, 1, 100))
-```
-

@@ -24,7 +24,6 @@ population_dynamics <- function(individuals, food_ratio = 1){
   } else individuals
 }
 
-
 #still a fertility reduction of 0.981 when food ratio is 1. fix.
 reproduce <- function(individuals, food_ratio){
   births <- individuals %>%
@@ -38,6 +37,10 @@ reproduce <- function(individuals, food_ratio){
     bind_rows(individuals, .)
 }
 
+#currently newborns age at the end of the time step, so technically there never are any newborns.
+# so perhaps age 0 should be different from newborns. that is, the model year of birth is like gestation.
+# if you are born, there's no chance of dying, but your age is NA. Next year, your age is 0 and there is a chance of dying.
+#basically I wonder if there current implementation "misses" a year of life. Somthing to think about, although its not a huge deal rn.
 
 #' @rdname reproduce
 
