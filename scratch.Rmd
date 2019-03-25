@@ -1,22 +1,31 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 
 testing
 ```{r}
+# libraries needed for the package
 devtools::load_all()
-#library(raster)
 library(sf)
 library(dplyr)
 library(purrr)
 library(furrr)
 library(tidyr)
 library(tidygraph)
+
+# libraries to help with this particular analysis
+#library(raster)
 library(ggplot2)
 library(ggraph)
 library(profvis)
+```
+set seed for reproducability
+```{r}
+set.seed(1000)
 ```
 
 ## Single population demography
@@ -24,7 +33,6 @@ library(profvis)
 First we'll create two test populations of ten people each, one with random ages and the other with only 25 year olds.
 
 ```{r}
-set.seed(1000)
 test_pop1 <- create_individuals(10, random = FALSE)
 test_pop2 <- create_individuals(10, random = TRUE)
 ```
@@ -62,7 +70,7 @@ ggplot(demographic_sim2, aes(age)) +
   theme_bw()
 ```
 
-```{r}
+```{r, eval = FALSE}
 profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_pop1))
 ```
 
@@ -107,23 +115,22 @@ farming_sim %>%
 ```
 
 
-```{r}
+```{r, eval = FALSE}
 profvis(accumulate(1:100, ~household_dynamics(.x), .init = test_pop3))
 ```
 
 Let's repeat this 20 times.
-```{r, warning = FALSE}
+```{r, chache = TRUE}
 nsim <- 500
 plan(multicore)
 farming_sim2 <- 1:50 %>%
-  future_map(~ accumulate(1:nsim, ~household_dynamics(.x), .init = test_pop3), .progress = TRUE)
+  future_map(~ accumulate(1:nsim, ~household_dynamics(.x), .init = test_pop3), .progress = TRUE) %>%
+  map_dfr(~bind_rows(., .id = 'time'), .id = 'rep') %>%
+  mutate(time = as.numeric(time)) 
 ```
 
 ```{r}
 farming_sim2 %>%
-  map_dfr(~bind_rows(., .id = 'time'), .id = 'rep') %>%
-  mutate(time = as.numeric(time)) %>%
-  filter(time < 501) %>%
   group_by(rep, time) %>%
   summarise(population = sum(occupants)) %>%
   ggplot(aes(time, population)) +
@@ -132,15 +139,12 @@ farming_sim2 %>%
   theme_classic()
 ```
 
-We can see from above that, in spite of the stochasticity, we are converging on logistic growth. The inflection point above is at about year 250. We can replicate this using the discrete time logistic growth model with a carrying capacity of 150 and an intrinsic growth rate of 0.02, the typical value estimated for agrarian societies. Comparing our model's growth curve to the logistic equation shows our model has slightly slower growth, likely due to the extra stochasticity introduced by having discrete households rather than a single well-mixed population. In fact, a growth rate of ~1.8 fits better.
+We can see from above that, in spite of the stochasticity, we converging on logistic growth. The inflection point above is at about year 250. We can replicate this using the discrete time logistic growth model with a carrying capacity of 150 and an intrinsic growth rate of 0.02, the typical value estimated for agrarian societies. Comparing our model's growth curve to the logistic equation shows our model has slightly slower growth, likely due to the extra stochasticity introduced by having discrete households rather than a single well-mixed population. In fact, a growth rate of ~1.8 fits better.
 ```{r}
-logistic_growth <- accumulate(1:500, ~.x * (1 + 0.02 * (1 - (.x / 150))), .init = 12) %>%
+logistic_growth <- accumulate(1:500, ~.x * (1 + 0.018 * (1 - (.x / 150))), .init = 9) %>%
   tibble(time = 0:500, population = .)
 
 farming_sim2 %>%
-  map_dfr(~bind_rows(., .id = 'time'), .id = 'rep') %>%
-  mutate(time = as.numeric(time)) %>%
-  filter(time < 501) %>%
   group_by(rep, time) %>%
   summarise(population = sum(occupants)) %>%
   ggplot(aes(time, population)) +
@@ -151,36 +155,26 @@ farming_sim2 %>%
 ```
 ```{r}
 farming_sim2 %>%
-  map_dfr(~bind_rows(., .id = 'time'), .id = 'rep') %>%
-  mutate(time = as.numeric(time)) %>%
-  filter(time < 501 & rep == '1') %>%
+  filter(rep == '1') %>%
   ggplot(aes(time, land, group = household)) +
   geom_line(alpha = 0.2) +
   theme_classic()
-```
 
-Developing new hh number
-```{r}
-new_hh_num <- function(x, n){
-  x %>%
-    pull(household) %>%
-    levels %>%
-    as.integer %>%
-    max %>%
-    `+`(1:n) %>%
-    as.factor
-}
-  
-t1 <- tibble(household = as.factor(1:4)) 
+farming_sim2 %>%
+  group_by(rep, time) %>%
+  summarise(households = n()) %>%
+  ggplot(aes(time, households)) +
+  geom_line(aes(group = rep), alpha = 0.3) +
+  geom_smooth() +
+  theme_classic()
 
-t2 <- tibble(household = new_hh_num(t1, 3))
-
-t3 <- bind_rows(t1, t2) %>% mutate(household = as.factor(household)) %>% filter(household == 4)
-t3
-
-t4 <- tibble(household = new_hh_num(t3, 3))
-
-bind_rows(t3, t4) %>% mutate(household = as.factor(household))
+farming_sim2 %>%
+  group_by(rep, time) %>%
+  summarise(land = sum(land)) %>%
+  ggplot(aes(time, land)) +
+  geom_line(aes(group = rep), alpha = 0.3) +
+  geom_smooth() +
+  theme_classic()
 ```
 
 
@@ -188,33 +182,7 @@ First we'll look at the model behavior for just a single settlement, focusing on
 
 Start by generating an experimental test population.
 
-```{r}
-environment <- crossing(arable = seq(0.3, 1, by = 0.05), precipitation = seq(0.3, 1, 0.05))
-test_pop <- create_settlement(225, n_households = 4) %>%
-  mutate(arable = environment$arable,
-         precipitation = environment$precipitation,
-         climatic_yield = calc_climatic_yield(precipitation))
-
-test_pop
-```
-
-
-
-Now run the simulation for 500 years
-```{r}
-nsim <- 500
-test <- reduce(1:nsim , ~household_dynamics(.x), .init = test_pop)
-
-plan(multicore)
-set.seed(1000)
-test <- test_pop %>%
-  mutate(chunk = rep(1:25, times = 9)) %>%
-  group_by(chunk) %>%
-  nest() %>%
-  mutate(out = future_map(data, ~reduce(1:nsim , ~household_dynamics(.x), .init = .x), .progress = TRUE))
-```
-
-```{r}
+```{r, eval = FALSE}
 test1 <- test %>%
   select(-data) %>%
   unnest %>%
@@ -242,56 +210,16 @@ AIC(m1,m2)
 ```
 So from this we see a linear increase in equilibrium population with increase in arable land, and a nonlinear increase with precipitation. Nothing terribly surprising here.
 
-```{r}
-1:500 %>%
-  reduce(~mutate(., households = map(households, ~reproduce(.) %>% die)), .init = test_pop) %>%
-  unnest %>%
-  unnest %>%
-  ggplot(aes(age)) +
-  geom_histogram(binwidth = 1, center = 0) +
-  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
-  theme_bw()
-```
 
-Now just run 1 settlement with 1 arable and precip, repeat several times, then end with the age distribution.
-```{r}
-test_pop2 <- create_settlement(1, n_household = 4)
-library(profvis)
-set.seed(1000)
-test_time2 <- system.time(accumulate(1:600, ~household_dynamics(.x), .init = test_pop2))
-
-set.seed(1000)
-profvis(test4 <- accumulate(1:600, ~household_dynamics(.x), .init = test_pop2))
-
-test3 <- 1:20 %>%
-  future_map(~accumulate(1:600, ~household_dynamics(.x), .init = test_pop2), .progress = TRUE)
-
-test3 %>%
-  map_dfr(~bind_rows(., .id = 'time') %>% select(time, population), .id = 'rep') %>%
-  ggplot(aes(as.numeric(time), population, group = rep)) +
-  geom_line()
-
-test3 %>%
-  select(-data) %>%
-  unnest %>%
-  filter(arable == 1, precipitation == 1) %>%
-  unnest %>%
-  unnest %>%
-  unnest %>%
-  ggplot(aes(age)) +
-  geom_histogram(binwidth = 5, center = 0) +
-  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
-  theme_bw()
-```
 
 should test to see if all the dplyr mutates and joins and whatever are faster or slower with more columns
 
-```{r}
+```{r, eval = FALSE}
 foodlim <- readr::read_csv('../../Foodlim_R_code/demog_vectors.csv')
 ```
 
 This is where the default demographic data that comes with the package gets made. Need to improve.
-```{r}
+```{r, eval = FALSE}
 fertility_table <- tibble(
   age = 0:119,
   fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70))
@@ -311,109 +239,78 @@ usethis::use_testthat()
 plot(fertility_table)
 ```
 
-# Migration
-
-
+# Settlement dynamics
 ```{r}
-hex <- rbind(c(0,0), c(100,0), c(100,100), c(0,100), c(0,0)) %>%
-  list %>%
-  st_polygon %>%
-  st_sfc %>%
-  st_make_grid(square = FALSE)
-
-pts <- st_centroid(hex)
-
-# dist <- st_intersects(hex, sparse = TRUE) %>% 
-#   as_tibble %>%
-#   rename(from = row.id, to = col.id) %>%
-#   mutate(distance = st_distance(pts[from], pts[2], by_element = TRUE))
-
-dist <- st_distance(pts) %>%
-  `rownames<-`(1:length(pts)) %>%
-  `colnames<-`(1:length(pts))
-
-dist_edgelist <- list(
-  from = rownames(dist)[row(dist)] %||% row(dist),
-  to = colnames(dist)[col(dist)] %||% col(dist),
-  weight = dist
-  ) %>% 
-  map_dfc(as.vector) %>%
-  mutate_if(is.character, as.integer)
+world <- create_world()
+ggplot(world) +
+  geom_sf(aes(fill = arable), color = 'white') +
+  coord_sf(datum = NA) +
+  scale_fill_viridis_c() +
+  theme_void()
+```
   
+```{r}
+settlements <- create_settlements(world)
 
-#filter(near(weight, 10))
-
-settlements <- create_settlement(length(hex)) %>%
-  mutate(population = 10,
-         x = st_coordinates(pts)[,1],
-         y = st_coordinates(pts)[,2],
-         geometry = pts) %>%
-  tbl_graph(edges = dist_edgelist, directed = TRUE) %E>%
-  rename(distance = weight)
-
-settlements  
-
-ggraph(settlements) +
+settlements %E>%
+  mutate(route = near(distance, min(distance))) %>%
+  filter(route == TRUE) %>%
+ggraph() +
   geom_edge_link() +
   geom_node_point(aes(size = population)) +
   coord_fixed() +
   theme_void()
-
-settlements %N>%
-  mutate(edge = centrality_degree() < 6)
-
-# full <- igraph::distances(settlements, mode = 'out') %>%
-#   as_tbl_graph %>%
-#   mutate(settlement = 1:n()) %E>%
-#   mutate(type = 'route')
-
-# graph_join(settlements, full) %>%
-#   filter(type == 'route') %>%
-#   ggraph() +
-#   geom_edge_link()
 ```
 
+
+```{r, cache = TRUE}
+test_grid <- accumulate(1:300, ~settlement_dynamics(.x), .init = settlements)
+```
+
+so right now, attractiveness is size based. that means that once a settlement hits 0, no one will ever want to move there right? this is why at equilibrium the largest sites are only ~150 people. So we need two sets of migrations, local and larger. maybe the spatial interaction model with full pariwise connections is a big migration, and something else for the neighboring 6 cells. perhaps that move can be land based or something else, maybe the fussion fission group joining thing. hmmmm
 ```{r}
-settlements %E>%
-  filter(near(weight, 10)) %>%
-  ggraph() +
+test_grid %>%
+  .[[300]] %E>%
+   filter(near(distance, min(distance))) %>%
+  ggraph +
   geom_edge_link() +
   geom_node_point(aes(size = population)) +
   coord_equal() +
-  theme_void()
+  theme_graph()
+
+test_grid %>%
+  .[[300]] %>%
+  as_tibble %>%
+  st_as_sf %>%
+  ggplot() +
+  geom_sf(aes(fill = population), color = 'white') +
+  coord_sf(datum = NA) +
+  scale_fill_viridis_c()
 ```
 
 ```{r}
-test <- settlements %N>%
-  mutate(attractiveness = 10, pop_start = 10)
+test_grid %>%
+  map_dfr(as_tibble, .id = 'time') %>%
+  ggplot(aes(as.numeric(time), population, group = settlement, color = settlement)) +
+  geom_smooth(alpha = .5) +
+  theme_classic()
 
+test_grid %>%
+  map_dfr(as_tibble, .id = 'time') %>%
+  ggplot(aes(as.numeric(time), population, group = settlement, color = settlement)) +
+  geom_line(alpha = .5) +
+  theme_classic()
 
- reduce(1:100, ~interact2(.x), .init = test) %E>%
-  filter(near(distance, 10)) %>%
-  ggraph() +
-  geom_edge_link() +
-  geom_node_point(aes(size = population)) +
-  coord_equal() +
-  theme_void()
-```
-
-AT some point it'd be nice to include like 10-20 percent of your food ratio, etc, as a function of the flows from other places. or maybe the flows from other places make up a pool of resources at the settlement level that the households divide amongst themselves
-```{r}
-test <- accumulate(1:500, ~settlement_dynamics(.x), .init = create_settlements(4))
-
-
-test %>%
-  map_dfr(~as_tibble(.x) %>% select(settlement, population), .id = 'time') %>%
-  mutate(time = as.numeric(time)) %>%
-  ggplot(aes(time, population, group = settlement, color = settlement)) +
-  geom_line() +
-  scale_color_viridis_d() +
+test_grid %>%
+  map_dfr(as_tibble, .id = 'time') %>%
+  mutate(land = map_dbl(households, ~sum(.$land))) %>%
+  ggplot(aes(as.numeric(time), land, group = settlement, color = settlement)) +
+  geom_smooth(alpha = .5) +
   theme_classic()
 ```
 
 
-
-
+AT some point it'd be nice to include like 10-20 percent of your food ratio, etc, as a function of the flows from other places. or maybe the flows from other places make up a pool of resources at the settlement level that the households divide amongst themselves
 
 
 
@@ -425,6 +322,3 @@ tibble(population = seq(1,100000, 1000),
   ggplot(aes(population, area)) +
   geom_line()
 ```
-
-## need a way to test if a settlement has become completely depopulated and allow it to repopulate
-possible a reason to have the environental table be separate and repeatedly joined to the population table or something

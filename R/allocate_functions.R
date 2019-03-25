@@ -20,7 +20,7 @@
 #' allocate_time(households)
 
 
-allocate_time <- function(households, precipitation = 1, runoff = 0, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
+allocate_time <- function(households, precipitation, runoff, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
   households %>%   #calculate optimum values for the different regions of the step function
     mutate(r1_maintainance = 0,
            r1_utility = yield_memory * land ^ (1 - j - k) * total_labor ^ j * precipitation ^ k,
@@ -35,13 +35,13 @@ allocate_time <- function(households, precipitation = 1, runoff = 0, total_labor
     select(-(r1_maintainance:max_utility))  # remove all the temporary columns
 }
 
-allocate_land <- function(households, area = 1, arable = 1){
+allocate_land <- function(households, cultivable_area){
   households %>%
-    mutate(max_land = max_cultivable_land(laborers, farming_labor, area * arable * 100, type = 'unlimited'),
+    mutate(max_land = max_cultivable_land(laborers, farming_labor, cultivable_area * 100, type = 'unlimited'),
            land_need = pmin(max_land, calc_land_need(occupants, yield_memory)), # land in hectares to support the household, but no more than the laborer can work
            new_land = if_else(land_need > land, land_need - land, 0)) %>%
     #group_by(settlement) %>%
-    mutate(available_land = area * arable * 100 - sum(land),
+    mutate(available_land = cultivable_area * 100 - sum(land),
            total_land_need = sum(new_land)) %>%
     #ungroup %>%
     mutate(land = if_else(total_land_need > available_land,

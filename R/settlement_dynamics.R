@@ -9,7 +9,11 @@
 
 settlement_dynamics <- function(settlements){
   settlements %N>%
-    mutate(households = map(households, household_dynamics)) %>%
+    mutate(households = pmap(list(households, cultivable_area, precipitation, runoff),
+                             ~household_dynamics(households = ..1,
+                                                 cultivable_area = ..2,
+                                                 precipitation = ..3,
+                                                 runoff = ..4))) %>%
     migrate %>%
     settlement_census
 }
@@ -27,17 +31,18 @@ migrate <- function(settlements){
            out_mig = round_preserve_sum(n_mig * flow / sum(flow))) %>%
     ungroup %>%
     mutate(migrants_to = map2(migrants_from, out_mig, ~sample_n(.x, .y))) %N>%
-    mutate(immigrants = map(settlement, ~bind_rows(.E()$migrants_to[.E()$to ==as.numeric(.x)])),
+    mutate(immigrants = map(settlement, ~bind_rows(.E()$migrants_to[.E()$to == as.numeric(.x)])),
            households = map2(households, immigrants, bind_households)) %E>%
     select(-c(flow, migrants_from, n_mig, out_mig, migrants_to)) %N>%
     select(-c(emmigrants, outflow, immigrants))
 }
 
 check_migrate <- function(households, migration_prob = 0.2){
-  households %>%
-    mutate(migrated = if_else((food_ratio < mean(food_ratio) | food_ratio < 1) &
-                                rbernoulli(n(), migration_prob), TRUE, FALSE) &
-             laborers > 0)
+  mutate(households,
+         migrated = if_else(food_ratio < 1 &
+                              laborers > 0 &
+                              rbernoulli(n(), migration_prob),
+                            TRUE, FALSE))
 }
 
 leave <- function(households){

@@ -11,29 +11,42 @@
 #' create_household(4)
 #' create_occupant(4)
 
-create_settlements <- function(n_settlements, n_households = 5){
-
-  pts <- rbind(c(0,0), c(30,0), c(30,30), c(0,30), c(0,0)) %>%
+create_world <- function(){
+  rbind(c(0, 0), c(50, 0), c(50, 50), c(0, 50), c(0, 0)) %>%
     list %>%
     st_polygon %>%
     st_sfc %>%
-    st_sample(4)
+    st_make_grid(n = c(5, 5), square = FALSE) %>%
+    st_sf %>%
+    mutate(precipitation = 1,
+           runoff = 0,
+           area = st_area(.),
+           arable = 1,
+           cultivable_area = area * arable)
+}
 
-  tbl_graph(nodes = tibble(settlement = as.factor(1:n_settlements),
-                           pts = pts,
-                           n_households = n_households,
-                           # the following parameters should be set from environmentla rasters if available
-                           area = 1,
-                           arable = 1,
-                           precipitation = 1,
-                           runoff = 0,
-                           climatic_yield = calc_climatic_yield(precipitation)),
-            edges = expand.grid(from = 1:4, to = 1:4)) %E>%
-    mutate(distance = st_distance(.N()$pts[from], .N()$pts[to], by_element = TRUE)) %>%
+create_settlements <- function(world, n_households = 3){
+  n_settlements <- nrow(world)
+
+  pts <- world %>%
+    st_centroid() %>%
+    st_coordinates()
+
+  world %>%
+    mutate(settlement = as.factor(1:n()),
+           x = pts[,1],
+           y = pts[,2],
+           xy = st_centroid(st_geometry(world)),
+           n_households = n_households) %>%
+    select(settlement, everything()) %>% # move settlement id to first column
+    tbl_graph(nodes = .,
+              edges = crossing(from = 1:n_settlements, to = 1:n_settlements)) %E>%
+    mutate(distance = st_distance(.N()$xy[from], .N()$xy[to], by_element = TRUE)) %>% # double check units later!
     filter(!edge_is_loop()) %N>%
-    mutate(households = map2(n_households, climatic_yield, create_households),
+    mutate(households = map2(n_households, precipitation, ~create_households(.x, precipitation = .y)),
            population = map_dbl(households, ~sum(.$occupants)),
-           settled_area = 0.175 * population ^ 0.634)
+           settled_area = 0.175 * population ^ 0.634) %>%
+    select(-xy)
 }
 
 
@@ -44,12 +57,12 @@ create_settlements <- function(n_settlements, n_households = 5){
 
 #' @rdname create_settlement
 
-create_households <- function(n_households, yield_memory = calc_climatic_yield(1), n_individuals = 4){
+create_households <- function(n_households, precipitation = 1, n_individuals = 3){
   tibble(household = as.factor(1:n_households),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
-         yield_memory = yield_memory, # fond memories
-         land = calc_land_need(occupants, yield_memory),
+         yield_memory = calc_climatic_yield(precipitation), # fond memories
+         land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
          farming_labor = 1,
          food_ratio = 1) %>%
     mutate(individuals = map(occupants, ~create_individuals(occupants = .)),
