@@ -10,20 +10,17 @@
 #' @examples
 #'
 
-farm <- function(households, climatic_yield = calc_climatic_yield(1)){
+produce_food <- function(households, precipitation){
+  climatic_yield <- calc_climatic_yield(precipitation)
   households %>%
-    mutate(yield = climatic_yield,
-           yield_memory = yield,
-           harvest = land * yield * .5 - land * sowing_rate) # halve the yields to represent biennial fallow
-}
-
-eat <- function(households){
-  households %>%
-    mutate(total_cal_req = occupants * wheat_req,
+    mutate(yield = climatic_yield, # redundant now, but leaves room for later yield reductions due to farming labor
+           yield_memory = yield, # again, redundant here but see below for older implementation to reincorporate in the future
+           harvest = land * yield * .5 - land * sowing_rate, # halve the yields to represent biennial fallow
+           total_cal_req = occupants * wheat_req,
            food_ratio = (storage + harvest) / total_cal_req,
            old_storage = storage,
            storage = if_else(total_cal_req <= storage, harvest, pmax(harvest - (total_cal_req - old_storage), 0))) %>%
-    select(-old_storage, -total_cal_req, -harvest, -yield)
+    select(-c(old_storage, total_cal_req, harvest, yield))
 }
 
 # farm <- function(households){
