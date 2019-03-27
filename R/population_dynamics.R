@@ -20,7 +20,7 @@ population_dynamics <- function(individuals, food_ratio = 1){
       reproduce(food_ratio) %>%
       die(food_ratio) %>%
       mutate(age = age + 1L) %>% # happy birthday!
-      select(-c(fertility_rate, mortality_rate, survivor_shape, survival_reduction, survived))
+      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived))
   } else individuals
 }
 
@@ -28,7 +28,7 @@ population_dynamics <- function(individuals, food_ratio = 1){
 reproduce <- function(individuals, food_ratio){
   births <- individuals %>%
     mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
-           reproduced = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>%  # divide by two to make everyone female
+           reproduced = rbernoulli(n(), fertility_rate * fertility_reduction)) %>%
     pull(reproduced) %>%
     sum
 
@@ -46,8 +46,7 @@ reproduce <- function(individuals, food_ratio){
 
 die <- function(individuals, food_ratio){
   individuals %>%
-    mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survivor_shape, scale = survivor_scale),
-           survived = rbernoulli(n(), (1 - mortality_rate) * survival_reduction)) %>% # convert mortality rate to survival rate
+    mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survival_shape, scale = survivor_scale),
+           survived = rbernoulli(n(), survival_rate * survival_reduction)) %>%
     filter(survived == TRUE)
 }
-
