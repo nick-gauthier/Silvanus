@@ -41,7 +41,7 @@ create_settlements <- function(world, n_households = 3){
     select(settlement, everything()) %>% # move settlement id to first column
     tbl_graph(nodes = .,
               edges = crossing(from = 1:n_settlements, to = 1:n_settlements)) %E>%
-    mutate(distance = st_distance(.N()$xy[from], .N()$xy[to], by_element = TRUE)) %>% # double check units later!
+    mutate(distance = as.numeric(st_distance(.N()$xy[from], .N()$xy[to], by_element = TRUE)) / 1000) %>%
     filter(!edge_is_loop()) %N>%
     mutate(households = map2(n_households, precipitation, ~create_households(.x, precipitation = .y)),
            population = map_dbl(households, ~sum(.$occupants)),

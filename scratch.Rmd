@@ -12,6 +12,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 testing
 ```{r}
+# libraries to help with this particular analysis
+library(ggplot2)
+library(ggraph)
+library(profvis)
+
 # libraries needed for the package
 devtools::load_all()
 library(sf)
@@ -20,12 +25,6 @@ library(purrr)
 library(furrr)
 library(tidyr)
 library(tidygraph)
-
-# libraries to help with this particular analysis
-#library(raster)
-library(ggplot2)
-library(ggraph)
-library(profvis)
 ```
 set seed for reproducability
 ```{r}
@@ -218,22 +217,21 @@ So from this we see a linear increase in equilibrium population with increase in
 
 should test to see if all the dplyr mutates and joins and whatever are faster or slower with more columns
 
-```{r, eval = FALSE}
-foodlim <- readr::read_csv('../../Foodlim_R_code/demog_vectors.csv')
-```
 
 This is where the default demographic data that comes with the package gets made. Need to improve.
 ```{r, eval = FALSE}
+foodlim <- readr::read_csv('../../Foodlim_R_code/demog_vectors.csv')
+
 fertility_table <- tibble(
   age = 0:119,
-  fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70))
+  fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70)) / 2 # divide by two to make everyone female
 )
 
 mortality_table <- tibble(
   age = 0:119,
-  mortality_rate = c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 
-                                                 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5)),
-  survivor_shape = foodlim$mortparms
+  survival_rate = (1 - c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 
+                                                 0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5))), # convert mortality rate to survival rate
+  survival_shape = foodlim$mortparms
 )
 
 life_table <- left_join(fertility_table, mortality_table)
@@ -242,6 +240,12 @@ usethis::use_testthat()
 
 plot(fertility_table)
 ```
+```{r}
+profvis(create_individuals(occupants = 1000000) %>% population_dynamics())
+
+system.time(create_individuals(occupants = 10000000) %>% population_dynamics())
+```
+
 
 # Settlement dynamics
 ```{r}
@@ -266,6 +270,18 @@ ggraph() +
   theme_void()
 ```
 
+```{r, eval = FALSE}
+temp <- reduce(1:20, ~settlement_dynamics(.x), .init = settlements)
+
+old <- temp
+
+temp %>%
+  as_tibble %>%
+  unnest(households) %>%
+  unnest %>%
+  select(settlement, household, food_ratio, age)
+unnest(unnest(as_tibble(temp), households))
+```
 
 ```{r, cache = TRUE}
 test_grid <- accumulate(1:500, ~settlement_dynamics(.x), .init = settlements)
@@ -326,66 +342,31 @@ tibble(population = seq(1,100000, 1000),
   ggplot(aes(population, area)) +
   geom_line()
 ```
-
-# real world
-
 ```{r}
-library(raster)
-bbox <- extent(8.5, 11.5, 36, 37.5)#extent(5, 11.5, 34, 37.5)
-bbox <- extent(450459.3, 729459.3, 3979550, 4157882)
-prec <- raster('../North-Africa/data/annual_prec.tif') %>% 
-  `/`(1000) %>%
-  projectRaster(crs = "+proj=utm +zone=32 +north +ellps=WGS84 +datum=WGS84 +units=m") %>%
-    crop(bbox)
+vegetation <- tibble(stage = 0:50)
+vegetation_to_biomass(vegetation)
 
-boundary <- (!prec) %>% 
-  rasterToPolygons(dissolve = TRUE) %>% 
-  st_as_sf %>%
-  st_cast('POLYGON') %>%
-  mutate(area = st_area(geometry)) %>%
-  filter(area == max(area))
-
-slope <- raster('../North-Africa/data/topography/earthenv_90m.tif') %>%
-  projectRaster(crs = "+proj=utm +zone=32 +north +ellps=WGS84 +datum=WGS84 +units=m") %>%
-    crop(bbox) %>%
-  mask(as(boundary, 'Spatial')) %>%
-  terrain(opt = 'slope', unit = 'degrees')
-
-hex <- boundary %>%
-  st_make_grid(cellsize = 10000, square = FALSE) %>%
-  st_sf %>%
-  mutate(prec = raster::extract(prec, ., fun = mean, na.rm = TRUE),
-         area = as.numeric(st_area(geometry)) * 1e-6, # convert from m2 to km2
-         arable = raster::extract(slope <= 5, ., fun = sum, na.rm = TRUE) / 
-           raster::extract(setValues(slope, 1), ., fun = sum, na.rm = TRUE),
-         cultivable_area = area * arable) %>%
-  filter(cultivable_area > 0)
-
-ggplot(hex) +
-  geom_sf(aes(fill = prec), color = 'white') +
-  scale_fill_distiller(palette = 'YlGnBu', direction = 1) +
-  coord_sf(datum = NA) +
-  theme_void()
-
-ggplot(hex) +
-  geom_sf(aes(fill = cultivable_area), color = 'white') +
-  scale_fill_viridis_c() +
-  coord_sf(datum = NA) +
-  theme_void()
-
-hex %>%
-  filter(cultivable_area < 1)
-  arrange(cultivable_area)
+vegetation %>%
+  stage_to_biomass() %>%
+ggplot(aes(stage, biomass)) +
+  geom_line() +
+  labs(title = 'Vegetation to biomass conversion', x = 'Vegetation succession stage', y = 'Biomass (kg/m2)') +
+  theme_minimal()
 ```
 
+sublinear scaling of firewood
 ```{r}
-hyde <- raster('../North-Africa/cropland200AD.asc') %>%
-  `crs<-`(value = '+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0') %>%
-    projectRaster(crs = "+proj=utm +zone=32 +north +ellps=WGS84 +datum=WGS84 +units=m") %>%
-  crop(bbox)
+wood_req <- 1600 # yearly firewood requirement (kg) per person
+max_wood_gather_intensity <- 0.08 * 1e6 # maximum wood gathering intensity in kg/m2, converted to to kg/km2 ### should tweak to account for grid cellsbeing less than 1km2
 
-plot(hyde)
+#this plot says that a population of less than 130 people can get their wood requirmenets from a fully vegetated 1km2 grid cell at the gathering intensity rate of 0.08 kg/m2. Above that population, right now people just extract more wood than they should ethnogrpahically. ideally at this threshold they would start gathering wood from naighboring patches.
+qplot(1:200, (wood_req * (1:200) ^ 0.8), geom= 'line') +
+  geom_hline(yintercept = max_wood_gather_intensity)
 ```
+
+
+
+
 
 
 

@@ -52,9 +52,9 @@ leave <- function(households){
     mutate(household = NA, land = 0, storage = 0)
 }
 
-interact <- function(net, alpha = 1.15, beta = 0.5){
+interact <- function(net, alpha = 1.15, beta = 0.1){
   net %E>%
-    mutate(interaction_strength = .N()$population[to] ^ alpha * exp(-beta * log(distance))) %N>%
+    mutate(interaction_strength = .N()$population[to] ^ alpha * exp(-beta * distance)) %N>%
     mutate(outflow = centrality_degree(weights = interaction_strength, mode = 'out', loops = FALSE)) %E>%
     mutate(flow = distance / .N()$outflow[from]) %>%
     select(-interaction_strength)
