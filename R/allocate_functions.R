@@ -7,6 +7,19 @@
 #' available time they should devote to each activity so as to
 #' maximize their expected utility.
 #'
+#' #' Infrastructure performance
+#'
+#' This function calculates the performance of irrigation
+#' infrastructure, given an amount of maintainance labor and
+#' parameters controling the scalability of the infrastructure.
+#' The performance of infrastructure is a piecewise linear
+#' function of labor inputs. Two parameters
+#' \eqn{\psi} and \eqn{\epsilon} determine how much labor is required to
+#' keep irrigation infrastructure working at maximum capacity.
+#' By default, \eqn{\psi \approx \epsilon} to make the
+#' infrastructure scalable, that is the agents can spend more
+#' or less time maintaining infrastructure and still be assured
+#' of at least some water. This equation is derived from [@david2015effect].
 #' @param total_labor
 #' @param j
 #' @param k
@@ -14,12 +27,13 @@
 #' @param households Tibble of household agents.
 #' @param psi
 #' @param epsilon
-#'
+#' @param maintainance_labor The proportion of total labor allocated to maintaining infrastructure.
+#' @param max_irrigation Maximum irrigation, defaults to 1.
+#' @param psi The proportion of a household's labor needed to keep irrigation infrastructure at half capacity, defaults to 0.2.
+#' @param epsilon The scalability of irrigation infrastructure, defaults to 0.18.
 #' @export
 #' @examples
-#' allocate_time(households)
-
-
+#' infrastructure_performance(maintainance_labor = 0.5)
 allocate_time <- function(households, precipitation, runoff, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
   households %>%   #calculate optimum values for the different regions of the step function
     mutate(r1_maintainance = 0,
@@ -54,12 +68,22 @@ calc_land_need <- function(occupants, yield, fallow = TRUE){
   wheat_req * occupants * (1 + seed_proportion) / yield * ifelse(fallow, 2, 1)
 }
 
+# need to replace this function with one that changes the value of labor based on the fraction available
+# similar idea, but it requires a different implementation than above because we have multiple households competing
+# for land here. right?
 max_cultivable_land <- function(laborers, farming_labor, available_area, fallow = TRUE, type = 'asymptote'){
   potential_area <- max_labor * farming_labor * laborers * ifelse(fallow, 2, 1) / labor_per_hectare
   if(type == 'unlimited') return(potential_area)
   if(type == 'step') return(pmin(available_area, potential_area))
   if(type == 'asymptote') return(available_area * (1 - exp(-potential_area / available_area)))
 }
-# need to replace the above function with one that changes the value of labor based on the fraction available
-# similar idea, but it requires a different implementation than above because we have multiple households competing
-# for land here. right?
+
+
+
+infrastructure_performance <- function(maintainance_labor, psi = 0.2, epsilon = 0.18, max_irrigation = 1){
+  ifelse(0 <= maintainance_labor & maintainance_labor < (psi - epsilon), 0,
+         ifelse(between(maintainance_labor, psi - epsilon, psi + epsilon),
+                max_irrigation / (2 * epsilon) * (maintainance_labor - psi + epsilon),
+                max_irrigation))
+}
+
