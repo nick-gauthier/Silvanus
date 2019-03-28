@@ -12,17 +12,25 @@
 #' @export
 #' @examples
 #' population_dynamics(individuals, food_ratio = 1)
-population_dynamics <- function(individuals){
-  if (nrow(individuals) > 0) {
-    individuals %>%
+population_dynamics <- function(x, food_ratio_c = 1){
+  if (nrow(x) > 0) {
+    if ('settlement' %in% names(x)) {}
+
+    if ('household' %in% names(x)) individuals <- zoom_in2(x) else individuals <- x
+
+    new_individuals <- individuals %>%
       left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
-      add_groups %>% # the two filter commands in reproduce and die are much slower on grouped df. move this command elsewhere if it becomes a speed issue
+      {if (!('food_ratio' %in% names(.))) mutate(., food_ratio = food_ratio_c) else .} %>%
+      {if ('household' %in% names(.)) group_by(., household) else .} %>% # the two filter commands in reproduce and die are much slower on grouped df. move this command elsewhere if it becomes a speed issue
       reproduce %>%
       die %>%
       ungroup %>%
       mutate(age = age + 1L) %>% # happy birthday!
       select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
-  } else individuals
+
+    if ('household' %in% names(x)) zoom_out2(new_individuals, x) else new_individuals
+
+  } else x
 }
 
 #still a fertility reduction of 0.981 when food ratio is 1. fix.

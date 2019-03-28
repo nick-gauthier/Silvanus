@@ -52,22 +52,26 @@ create_settlements <- function(world, n_households = 3){
 
 #' @rdname create_settlement
 
-create_households <- function(n_households, precipitation = 1, n_individuals = 3, headless = TRUE){
+create_households <- function(n_households, precipitation_c = 1, n_individuals = 3){
   tibble(household = forcats::fct_explicit_na(as.factor(1:n_households)),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
-         yield_memory = calc_climatic_yield(precipitation), # fond memories
-         land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
          farming_labor = 1,
          food_ratio = 1) %>%
-    mutate(individuals = map(occupants, ~create_individuals(occupants = .), headless = FALSE),
+    {if (!('precipitation' %in% names(.))) mutate(., precipitation = precipitation_c) else .} %>%
+    mutate(yield_memory = calc_climatic_yield(precipitation), # fond memories
+           land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
+           individuals = map(occupants, ~create_individuals(occupants = .)),
            laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
 }
 
 #' @rdname create_settlement
 
-create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25L, headless = TRUE){
-  if(random_ages == FALSE){
-    tibble(age = rep(age, occupants)) # if random is FALSE, set ages to age
-  } else tibble(age = sample.int(80, size = occupants, replace = TRUE)) # if random TRUE, random ages under 80
+create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25L){
+  # if(random_ages == FALSE){
+  #   tibble(age = rep(age, occupants)) # if random is FALSE, set ages to age
+  # } else tibble(age = sample.int(80, size = occupants, replace = TRUE)) # if random TRUE, random ages under 80
+  tibble(age = rep(age, occupants))
 }
+
+create_individuals()

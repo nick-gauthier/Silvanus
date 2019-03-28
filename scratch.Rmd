@@ -279,11 +279,15 @@ ggraph() +
 ```
 
 ```{r, eval = FALSE}
-profvis(reduce(1:20, ~settlement_dynamics(.x), .init = settlements))
+plan(multicore)
+profvis((reduce(1:5, ~settlement_dynamics(.x), .init = filter(activate(settlements, 'edges'), distance < 40))))
 ```
 
 ```{r, cache = TRUE}
-test_grid <- accumulate(1:500, ~settlement_dynamics(.x), .init = filter(activate(settlements, 'edges'), distance < 40))
+system.time(suppressWarnings(reduce(1:100, ~settlement_dynamics(.x), .init = filter(activate(settlements, 'edges'), distance < 40))))
+test_grid <- suppressWarnings(accumulate(1:300, ~settlement_dynamics(.x), .init = filter(activate(settlements, 'edges'), distance < 40)))
+
+memory.profile()
 ```
 
 so right now, attractiveness is size based. that means that once a settlement hits 0, no one will ever want to move there right? this is why at equilibrium the largest sites are only ~150 people. So we need two sets of migrations, local and larger. maybe the spatial interaction model with full pariwise connections is a big migration, and something else for the neighboring 6 cells. perhaps that move can be land based or something else, maybe the fussion fission group joining thing. hmmmm

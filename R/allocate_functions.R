@@ -55,7 +55,7 @@ allocate_land <- function(households){
     mutate(max_land = max_cultivable_land(laborers, farming_labor, cultivable_area * 100, type = 'unlimited'),
            land_need = pmin(max_land, calc_land_need(occupants, yield_memory)), # land in hectares to support the household, but no more than the laborer can work
            new_land = if_else(land_need > land, land_need - land, 0)) %>%
-    group_by(settlement) %>%
+    {if ('settlement' %in% names(.)) group_by(., settlement) else .} %>%
     mutate(available_land = cultivable_area * 100 - sum(land),
            total_land_need = sum(new_land)) %>%
     ungroup %>%

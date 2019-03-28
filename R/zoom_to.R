@@ -1,5 +1,9 @@
 #' Title
 #'
+#' These are  internal convencience functions used by the *_dynamics commands
+#' that allow functions meant for one level to be called from another level.
+#' zoom_in takes a settlement or household tibble and produces as household or
+#' individuals tibble, respectively. zoom_out does the opposite.
 #' @param level
 #' @param FUN
 #'
@@ -7,9 +11,34 @@
 #' @export
 #'
 #' @examples
-zoom_to <- function(settlements, level){
+#'
+
+zoom_in2 <- function(x){
+  unnest(x) %>%
+    select(household, food_ratio, age)
+}
+
+create_households(5) %>%
+  zoom_in2() %>%
+  population_dynamics
+
+zoom_out2 <- function(x, y){
+  y %>%
+    select(-individuals) %>%
+    nest_join(x, by = 'household', name = 'individuals') %>%
+    household_census() %>%
+    filter(occupants > 0)
+}
+zoom_in <- function(x, level){
 # what does all this nesting and unnesting do to the "unique' hh id factor levels?
+  #if ('settlement' %in% names(x)){
+  #  x %N>%
+  #}
   if (level == 'individuals') {
+
+
+
+
     old_settlements <- settlements %N>%
       as_tibble %>%
       select(settlement, households)
@@ -19,7 +48,7 @@ zoom_to <- function(settlements, level){
 
     new_individuals <- old_households %>%
       unnest %>%
-      select(settlement, household, food_ratio, age) %>%
+      select(household, food_ratio, age) %>%
       population_dynamics()
 
     new_households <- old_households %>%
@@ -39,14 +68,17 @@ zoom_to <- function(settlements, level){
       household_dynamics()
   }
 
+}
+
+zoom_out <- function(from, to){
     new_settlements <- old_settlements %>%
       select(-households) %>%
       nest_join(new_households, by = 'settlement', name = 'households') %>%
       select(settlement, households)
 
-    settlements %>%
+    to %>%
       select(-households) %>%
-      left_join(new_settlements, by = 'settlement')
+      left_join(from, by = 'settlement')
     # so the question is do we want healdess be a way to differentiate create_ functions or _dynamics functions
 }
 

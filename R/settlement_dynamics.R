@@ -33,7 +33,7 @@ migrate <- function(settlements){
            out_mig = round_preserve_sum(n_mig * flow / sum(flow))) %>%
     ungroup %>%
     mutate(migrants_to = map2(migrants_from, out_mig, ~sample_n(.x, .y))) %N>%
-    mutate(immigrants = map(settlement, ~bind_rows(.E()$migrants_to[.E()$to == as.numeric(.x)])),
+    mutate(immigrants = future_map(settlement, ~bind_rows(.E()$migrants_to[.E()$to == as.numeric(.x)])),
            households = map2(households, immigrants, bind_households)) %E>%
     select(-c(flow, migrants_from, n_mig, out_mig, migrants_to)) %N>%
     select(-c(emmigrants, outflow, immigrants))
