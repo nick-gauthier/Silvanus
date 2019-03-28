@@ -12,35 +12,38 @@
 #' @export
 #' @examples
 #' population_dynamics(individuals, food_ratio = 1)
-
-population_dynamics <- function(individuals, food_ratio = 1){
+population_dynamics <- function(individuals, food_ratio_const = 1, headless = TRUE){
   if (nrow(individuals) > 0) {
     individuals %>%
       left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
-      reproduce(food_ratio) %>%
-      die(food_ratio) %>%
+      {if (!('food_ratio' %in% names(.))) mutate(., food_ratio = food_ratio_const) else .} %>% # simplify! this is a inefficient way to propagate the food ratio
+      {if (headless == FALSE) add_groups else .} %>% # the two filter commands in reproduce and die are much slower on grouped df. move this command elsewhere if it becomes a speed issue
+      reproduce %>%
+      die %>%
+      {if (headless == FALSE) ungroup else .} %>%
       mutate(age = age + 1L) %>% # happy birthday!
-      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived))
+      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
   } else individuals
 }
 
 #still a fertility reduction of 0.981 when food ratio is 1. fix.
-reproduce <- function(individuals, food_ratio){
-  births <- individuals %>%
+reproduce <- function(individuals){
+  individuals %>%
     mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
            reproduced = rbernoulli(n(), fertility_rate * fertility_reduction)) %>%
-    pull(reproduced) %>%
-    sum
-
-  life_table %>% # give birth to new individual by repeating the 0 age row of the life table and binding back
-    slice(rep.int(1L, times = births)) %>%
-    bind_rows(individuals, .)
+    filter(reproduced == TRUE) %>% # if nrows == 0, will give a (for some reason unsuppressible) warning
+    tally %>% # count births per household
+    uncount(n) %>% # repeat rows based on birth count per household-settlement combo
+    mutate(age = 0) %>%
+    left_join(life_table, by = 'age') %>%
+    bind_rows(individuals, .) %>%
+    fill(food_ratio)
 }
 
 #currently newborns age at the end of the time step, so technically there never are any newborns.
 # so perhaps age 0 should be different from newborns. that is, the model year of birth is like gestation.
 # if you are born, there's no chance of dying, but your age is NA. Next year, your age is 0 and there is a chance of dying.
-#basically I wonder if there current implementation "misses" a year of life. Somthing to think about, although its not a huge deal rn.
+#basically I wonder if there current implementation "misses" a year of life. Something to think about, although its not a huge deal rn.
 
 #' @rdname reproduce
 

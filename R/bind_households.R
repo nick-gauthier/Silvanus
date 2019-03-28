@@ -11,7 +11,7 @@ bind_households <- function(old_households, new_households){
   if (nrow(new_households) > 0) {
     new_households <- new_households %>%
       mutate(household = new_hh_num(old_households, n()))
-
+# how does this work with the new groupings?
     out <- suppressWarnings(bind_rows(old_households, new_households)) %>% # suppress warning about binding unequal factor levels
       mutate(household = as.factor(household)) # binding converts factors to characters so need to convert back
   } else {out <- old_households}

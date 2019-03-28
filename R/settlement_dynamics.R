@@ -9,12 +9,14 @@
 
 settlement_dynamics <- function(settlements){
   settlements %N>%
-    mutate(households = pmap(list(households, cultivable_area, precipitation, runoff),
-                             ~household_dynamics(households = ..1,
-                                                 cultivable_area = ..2,
-                                                 precipitation = ..3,
-                                                 runoff = ..4))) %>%
+    # mutate(households = pmap(list(households, cultivable_area, precipitation, runoff),
+    #                          ~household_dynamics(households = ..1,
+    #                                              cultivable_area = ..2,
+    #                                              precipitation = ..3,
+    #                                              runoff = ..4))) %>%
+    zoom_to('households') %>%
     migrate %>%
+    zoom_to('individuals') %>%
     settlement_census
 }
 
@@ -52,7 +54,7 @@ leave <- function(households){
     mutate(household = NA, land = 0, storage = 0)
 }
 
-interact <- function(net, alpha = 1.15, beta = 0.1){
+interact <- function(net, alpha = 1.15, beta = 0.07){
   net %E>%
     mutate(interaction_strength = .N()$population[to] ^ alpha * exp(-beta * distance)) %N>%
     mutate(outflow = centrality_degree(weights = interaction_strength, mode = 'out', loops = FALSE)) %E>%

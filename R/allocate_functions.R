@@ -34,7 +34,7 @@
 #' @export
 #' @examples
 #' infrastructure_performance(maintainance_labor = 0.5)
-allocate_time <- function(households, precipitation, runoff, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
+allocate_time <- function(households, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
   households %>%   #calculate optimum values for the different regions of the step function
     mutate(r1_maintainance = 0,
            r1_utility = yield_memory * land ^ (1 - j - k) * total_labor ^ j * precipitation ^ k,
@@ -47,18 +47,19 @@ allocate_time <- function(households, precipitation, runoff, total_labor = 1, j 
            farming_labor = if_else(max_utility == r3_utlity, 1 - r3_maintainance,
                                    if_else(max_utility == r2_utility, 1 - r2_maintainance, 1 - r1_maintainance))) %>%
     select(-(r1_maintainance:max_utility))  # remove all the temporary columns
+  # should simplifgy with case when or something
 }
 
-allocate_land <- function(households, cultivable_area){
+allocate_land <- function(households, headless = TRUE){
   households %>%
     mutate(max_land = max_cultivable_land(laborers, farming_labor, cultivable_area * 100, type = 'unlimited'),
            land_need = pmin(max_land, calc_land_need(occupants, yield_memory)), # land in hectares to support the household, but no more than the laborer can work
            new_land = if_else(land_need > land, land_need - land, 0)) %>%
-    #group_by(settlement) %>%
+    {if (headless == FALSE) group_by(x, settlement) else x}
     mutate(available_land = cultivable_area * 100 - sum(land),
            total_land_need = sum(new_land)) %>%
-    #ungroup %>%
-    mutate(land = if_else(total_land_need > available_land,
+    {if (headless == FALSE) ungroup else .} %>%
+      mutate(land = if_else(total_land_need > available_land,
                           land + new_land / total_land_need * available_land,
                           land + new_land)) %>%
     select(-c(land_need, max_land, new_land, total_land_need, available_land))
