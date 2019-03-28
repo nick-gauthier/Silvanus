@@ -7,23 +7,24 @@
 #' @export
 #'
 #' @examples
+#' old_households <- create_households(4);new_households <- create_households(5) %>% mutate(household = NA)
+#'
 bind_households <- function(old_households, new_households){
   if (nrow(new_households) > 0) {
-    new_households <- new_households %>%
-      mutate(household = new_hh_num(old_households, n()))
-# how does this work with the new groupings?
-    out <- suppressWarnings(bind_rows(old_households, new_households)) %>% # suppress warning about binding unequal factor levels
-      mutate(household = as.factor(household)) # binding converts factors to characters so need to convert back
-  } else {out <- old_households}
-  return(out)
-}
+    old_hh_nums <- pull(old_households, household)
 
-new_hh_num <- function(x, n){
-  x %>%
-    pull(household) %>%
-    levels %>%
-    as.integer %>%
-    max %>%
-    `+`(1:n) %>%
-    as.factor
+    new_hh_nums <- old_hh_nums %>%
+      levels %>%
+      as.integer %>%
+      max %>%
+      `+`(1:nrow(new_households)) %>%
+      as.factor %>%
+      list(old_hh_nums, .) %>%
+      fct_unify()
+
+    bind_rows(
+      mutate(old_households, household = new_hh_nums[[1]]),
+      mutate(new_households, household = new_hh_nums[[2]])
+    )
+  } else {old_households}
 }

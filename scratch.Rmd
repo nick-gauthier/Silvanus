@@ -32,6 +32,7 @@ set seed for reproducability
 set.seed(1000)
 ```
 
+
 ## Single population demography
 
 First we'll create two test populations of ten people each, one with random ages and the other with only 25 year olds.
@@ -44,7 +45,6 @@ test_pop2 <- create_individuals(10, random = TRUE)
 Then run a 1,000 year simulation from each of the two initial populations.
 ```{r}
 nsim <- 700
-
 demographic_sim <- reduce(1:nsim, ~population_dynamics(.x), .init = test_pop1)
 ```
 
@@ -61,7 +61,7 @@ ggplot(demographic_sim, aes(age)) +
 Now we can look at a food-limited population.
 
 ```{r}
-demographic_sim2 <- reduce(1:nsim, ~population_dynamics(.x, food_ratio_const = 0.8), .init = test_pop1)
+demographic_sim2 <- reduce(1:nsim, ~population_dynamics(.x, food_ratio_c = 0.85), .init = test_pop1)
 ```
 
 Reducing the food ratio from 1 to 0.8 increases infant mortality, resulting in an older and smaller population than without food limitation.
@@ -83,7 +83,7 @@ profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_po
 ```{r}
 test_pop3 <- create_households(3)
 
-farming_sim <- accumulate(1:nsim, ~household_dynamics(.x), .init = test_pop3)
+farming_sim <- accumulate(1:nsim, ~household_dynamics(.x) %>% population_dynamics, .init = test_pop3)
 ```
 
 
@@ -120,7 +120,7 @@ farming_sim %>%
 
 
 ```{r, eval = FALSE}
-profvis(accumulate(1:100, ~household_dynamics(.x), .init = test_pop3))
+profvis(accumulate(1:100, ~household_dynamics(.x) %>% population_dynamics, .init = test_pop3))
 ```
 
 Let's repeat this 20 times.

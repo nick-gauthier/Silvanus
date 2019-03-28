@@ -9,11 +9,6 @@
 
 settlement_dynamics <- function(settlements){
   settlements %N>%
-    # mutate(households = pmap(list(households, cultivable_area, precipitation, runoff),
-    #                          ~household_dynamics(households = ..1,
-    #                                              cultivable_area = ..2,
-    #                                              precipitation = ..3,
-    #                                              runoff = ..4))) %>%
     zoom_to('households') %>%
     migrate %>%
     zoom_to('individuals') %>%

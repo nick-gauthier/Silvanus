@@ -21,10 +21,8 @@ population_dynamics <- function(x, food_ratio_c = 1){
     new_individuals <- individuals %>%
       left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
       {if (!('food_ratio' %in% names(.))) mutate(., food_ratio = food_ratio_c) else .} %>%
-      {if ('household' %in% names(.)) group_by(., household) else .} %>% # the two filter commands in reproduce and die are much slower on grouped df. move this command elsewhere if it becomes a speed issue
       reproduce %>%
       die %>%
-      ungroup %>%
       mutate(age = age + 1L) %>% # happy birthday!
       select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
 
@@ -39,8 +37,9 @@ reproduce <- function(individuals){
     mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
            reproduced = rbernoulli(n(), fertility_rate * fertility_reduction)) %>%
     filter(reproduced == TRUE) %>% # if nrows == 0, will give a (for some reason unsuppressible) warning
+    {if ('household' %in% names(.)) group_by(., household) else .} %>%
     tally %>% # count births per household
-    uncount(n) %>% # repeat rows based on birth count per household-settlement combo
+    uncount(n) %>% # repeat rows based on birth count per household
     mutate(age = 0) %>%
     left_join(life_table, by = 'age') %>%
     bind_rows(individuals, .) %>%
