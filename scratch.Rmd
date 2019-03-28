@@ -7,7 +7,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = TRUE)
 ```
 
 testing
@@ -24,6 +24,7 @@ library(dplyr)
 library(purrr)
 library(furrr)
 library(tidyr)
+library(forcats)
 library(tidygraph)
 ```
 set seed for reproducability
@@ -60,7 +61,7 @@ ggplot(demographic_sim, aes(age)) +
 Now we can look at a food-limited population.
 
 ```{r}
-demographic_sim2 <- reduce(1:nsim, ~population_dynamics(.x, food_ratio = 0.8), .init = test_pop1)
+demographic_sim2 <- reduce(1:nsim, ~population_dynamics(.x, food_ratio_const = 0.8), .init = test_pop1)
 ```
 
 Reducing the food ratio from 1 to 0.8 increases infant mortality, resulting in an older and smaller population than without food limitation.
@@ -243,7 +244,14 @@ plot(fertility_table)
 ```{r}
 profvis(create_individuals(occupants = 1000000) %>% population_dynamics())
 
-system.time(create_individuals(occupants = 10000000) %>% population_dynamics())
+t1 <- create_individuals(occupants = 1000000) 
+t2 <- t1 %>% mutate(households = rep(1:100000, each = 10)) %>%
+  group_by(households) %>%
+  nest()
+set.seed(1000)
+system.time(population_dynamics(t1))
+set.seed(1000)
+system.time(mutate(t2,data = map(data, population_dynamics)))
 ```
 
 
@@ -251,7 +259,7 @@ system.time(create_individuals(occupants = 10000000) %>% population_dynamics())
 ```{r}
 world <- create_world()
 ggplot(world) +
-  geom_sf(aes(fill = arable), color = 'white') +
+  geom_sf(aes(fill = precipitation), color = 'white') +
   coord_sf(datum = NA) +
   scale_fill_viridis_c() +
   theme_void()
@@ -271,26 +279,17 @@ ggraph() +
 ```
 
 ```{r, eval = FALSE}
-temp <- reduce(1:20, ~settlement_dynamics(.x), .init = settlements)
-
-old <- temp
-
-temp %>%
-  as_tibble %>%
-  unnest(households) %>%
-  unnest %>%
-  select(settlement, household, food_ratio, age)
-unnest(unnest(as_tibble(temp), households))
+profvis(reduce(1:20, ~settlement_dynamics(.x), .init = settlements))
 ```
 
 ```{r, cache = TRUE}
-test_grid <- accumulate(1:500, ~settlement_dynamics(.x), .init = settlements)
+test_grid <- accumulate(1:500, ~settlement_dynamics(.x), .init = filter(activate(settlements, 'edges'), distance < 40))
 ```
 
 so right now, attractiveness is size based. that means that once a settlement hits 0, no one will ever want to move there right? this is why at equilibrium the largest sites are only ~150 people. So we need two sets of migrations, local and larger. maybe the spatial interaction model with full pariwise connections is a big migration, and something else for the neighboring 6 cells. perhaps that move can be land based or something else, maybe the fussion fission group joining thing. hmmmm
 ```{r}
 test_grid %>%
-  .[[300]] %E>%
+  .[[501]] %E>%
    filter(near(distance, min(distance))) %>%
   ggraph +
   geom_edge_link() +
@@ -299,7 +298,7 @@ test_grid %>%
   theme_graph()
 
 test_grid %>%
-  .[[300]] %>%
+  .[[501]] %>%
   as_tibble %>%
   st_as_sf %>%
   ggplot() +
@@ -311,7 +310,7 @@ test_grid %>%
 ```{r}
 test_grid %>%
   map_dfr(as_tibble, .id = 'time') %>%
-  ggplot(aes(as.numeric(time), population, group = settlement, color = settlement)) +
+  ggplot(aes(as.numeric(time), log(population), group = settlement, color = settlement)) +
   geom_smooth(alpha = .5) +
   theme_classic()
 

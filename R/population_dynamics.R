@@ -12,15 +12,14 @@
 #' @export
 #' @examples
 #' population_dynamics(individuals, food_ratio = 1)
-population_dynamics <- function(individuals, food_ratio_const = 1, headless = TRUE){
+population_dynamics <- function(individuals){
   if (nrow(individuals) > 0) {
     individuals %>%
       left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
-      {if (!('food_ratio' %in% names(.))) mutate(., food_ratio = food_ratio_const) else .} %>% # simplify! this is a inefficient way to propagate the food ratio
-      {if (headless == FALSE) add_groups else .} %>% # the two filter commands in reproduce and die are much slower on grouped df. move this command elsewhere if it becomes a speed issue
+      add_groups %>% # the two filter commands in reproduce and die are much slower on grouped df. move this command elsewhere if it becomes a speed issue
       reproduce %>%
       die %>%
-      {if (headless == FALSE) ungroup else .} %>%
+      ungroup %>%
       mutate(age = age + 1L) %>% # happy birthday!
       select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
   } else individuals

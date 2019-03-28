@@ -34,7 +34,7 @@ create_settlements <- function(world, n_households = 3){
     st_coordinates()
 
   world %>%
-    mutate(settlement = forcats::fct_explict_na(as.factor(1:n())),
+    mutate(settlement = forcats::fct_explicit_na(as.factor(1:n())),
            x = pts[,1],
            y = pts[,2],
            xy = st_centroid(st_geometry(world)),
@@ -53,7 +53,7 @@ create_settlements <- function(world, n_households = 3){
 #' @rdname create_settlement
 
 create_households <- function(n_households, precipitation = 1, n_individuals = 3, headless = TRUE){
-  tibble(household = forcats::fct_explict_na(as.factor(1:n_households)),
+  tibble(household = forcats::fct_explicit_na(as.factor(1:n_households)),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
          yield_memory = calc_climatic_yield(precipitation), # fond memories

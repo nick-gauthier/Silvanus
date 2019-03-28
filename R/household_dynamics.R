@@ -6,11 +6,11 @@
 #' @examples
 #' allocate_time(households)
 
-household_dynamics <- function(households, headless = TRUE, cultivable_area = 1, precipitation = 1, runoff = 0){
+household_dynamics <- function(households, cultivable_area = 1, precipitation = 1, runoff = 0){
   if(nrow(households) > 0){
     households %>%
       allocate_time %>%
-      allocate_land(headless = headless) %>%
+      allocate_land %>%
       produce_food %>%
       fission %>%
       household_census

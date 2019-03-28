@@ -20,30 +20,34 @@ zoom_to <- function(settlements, level){
     new_individuals <- old_households %>%
       unnest %>%
       select(settlement, household, food_ratio, age) %>%
-      population_dynamics(headless = FALSE)
+      population_dynamics()
 
     new_households <- old_households %>%
       select(-individuals) %>%
       nest_join(new_individuals, by = c('settlement', 'household'), name = 'individuals') %>%
       household_census()
+  }
+
+
+  if (level == 'households'){
+    old_settlements <- settlements %N>%
+      as_tibble()
+
+    new_households <- old_settlements %>%
+      select(settlement, precipitation, runoff, cultivable_area, households) %>%
+      unnest(households) %>%
+      household_dynamics()
+  }
 
     new_settlements <- old_settlements %>%
       select(-households) %>%
-      nest_join(new_households, by = 'settlement', name = 'households')
+      nest_join(new_households, by = 'settlement', name = 'households') %>%
+      select(settlement, households)
 
     settlements %>%
       select(-households) %>%
       left_join(new_settlements, by = 'settlement')
-  }
-
-  if (level == 'households'){
-    settlements %N>%
-      as_tibble() %>%
-      select(settlement, precipitation, runoff, cultivable_area, households) %>%
-      unnest(households) %>%
-      household_dynamics(headless = FALSE)
-  }
-
+    # so the question is do we want healdess be a way to differentiate create_ functions or _dynamics functions
 }
 
 add_groups <- function(x){
