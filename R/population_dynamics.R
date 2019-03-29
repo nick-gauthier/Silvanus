@@ -37,13 +37,15 @@ reproduce <- function(individuals){
     mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
            reproduced = rbernoulli(n(), fertility_rate * fertility_reduction)) %>%
     filter(reproduced == TRUE) %>% # if nrows == 0, will give a (for some reason unsuppressible) warning
-    {if ('household' %in% names(.)) group_by(., household) else .} %>%
+    {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
     tally %>% # count births per household
     uncount(n) %>% # repeat rows based on birth count per household
     mutate(age = 0) %>%
     left_join(life_table, by = 'age') %>%
     bind_rows(individuals, .) %>%
-    fill(food_ratio)
+    {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
+    fill(food_ratio) %>% #  group here so fill respects household membership while propagating food_ratio
+    ungroup
 }
 
 #currently newborns age at the end of the time step, so technically there never are any newborns.
