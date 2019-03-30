@@ -18,8 +18,8 @@ create_world <- function(){
     st_sfc %>%
     st_make_grid(cellsize = 7000, square = FALSE) %>%
     st_sf %>%
-    mutate(precipitation = .5,
-           runoff = 0,
+    mutate(rainfall = .5,
+           streamflow = 0,
            area = st_area(geometry) * 1e-6,
            arable = 1,
            cultivable_area = area * arable) %>%
@@ -44,7 +44,7 @@ create_settlements <- function(world, n_households = 3){
               edges = crossing(from = 1:n_settlements, to = 1:n_settlements)) %E>%
     mutate(distance = as.numeric(st_distance(.N()$xy[from], .N()$xy[to], by_element = TRUE)) / 1000) %>%
     filter(!edge_is_loop()) %N>%
-    mutate(households = map2(n_households, precipitation, ~create_households(.x, precipitation = .y), headless = FALSE),
+    mutate(households = map2(n_households, rainfall, ~create_households(.x, rainfall = .y), headless = FALSE),
            population = map_dbl(households, ~sum(.$occupants)),
            settled_area = 0.175 * population ^ 0.634) %>%
     select(-xy)
@@ -52,14 +52,14 @@ create_settlements <- function(world, n_households = 3){
 
 #' @rdname create_settlement
 
-create_households <- function(n_households, precipitation_c = 1, n_individuals = 3){
+create_households <- function(n_households, rainfall_c = 1, n_individuals = 3){
   tibble(household = forcats::fct_explicit_na(as.factor(1:n_households)),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
          farming_labor = 1,
          food_ratio = 1) %>%
-    {if (!('precipitation' %in% names(.))) mutate(., precipitation = precipitation_c) else .} %>%
-    mutate(yield_memory = calc_climatic_yield(precipitation), # fond memories
+    {if (!('rainfall' %in% names(.))) mutate(., rainfall = rainfall_c) else .} %>%
+    mutate(yield_memory = calc_climatic_yield(rainfall), # fond memories
            land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
            individuals = map(occupants, ~create_individuals(occupants = .))) %>%
     household_census()

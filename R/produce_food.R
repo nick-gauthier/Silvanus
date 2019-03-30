@@ -12,7 +12,7 @@
 
 produce_food <- function(households){
   households %>%
-    mutate(yield = calc_climatic_yield(precipitation), # redundant now, but leaves room for later yield reductions due to farming labor
+    mutate(yield = calc_climatic_yield(rainfall), # redundant now, but leaves room for later yield reductions due to farming labor
            yield_memory = yield, # again, redundant here but see below for older implementation to reincorporate in the future
            harvest = land * yield * .5 - land * sowing_rate, # halve the yields to represent biennial fallow
            total_cal_req = occupants * wheat_req,
@@ -22,8 +22,8 @@ produce_food <- function(households){
     select(-c(old_storage, total_cal_req, harvest, yield))
 }
 
-calc_climatic_yield <- function(precipitation){
-  max_yield * pmax(0, 0.51 * log(precipitation) + 1.03)  # annual precipitation impact on yields
+calc_climatic_yield <- function(rainfall){
+  max_yield * pmax(0, 0.51 * log(rainfall) + 1.03)  # annual rainfall impact on yields
 }
 
 # farm <- function(households){
