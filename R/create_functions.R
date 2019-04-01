@@ -61,8 +61,9 @@ create_households <- function(n_households, rainfall_c = 1, n_individuals = 3){
     {if (!('rainfall' %in% names(.))) mutate(., rainfall = rainfall_c) else .} %>%
     mutate(yield_memory = calc_climatic_yield(rainfall), # fond memories
            land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
-           individuals = map(occupants, ~create_individuals(occupants = .))) %>%
-    household_census()
+           individuals = map(occupants, ~create_individuals(occupants = .)),
+           occupants = map_int(individuals, nrow),
+           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
 }
 
 #' @rdname create_settlement

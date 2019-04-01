@@ -24,6 +24,15 @@ household_dynamics <- function(households, cultivable_area_c = 1, rainfall_c = 1
 
 household_census <- function(households){
   households %>%
-    mutate(occupants = map_int(individuals, nrow),
-           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
+    unnest %>%
+    group_by(household) %>%
+    summarise(occupants = n(),
+              laborers = sum(between(age, 15, 65))) %>%
+    left_join(select(households, -c(occupants, laborers)), ., by = 'household')
+
+
+  #originally like this, but above is much faster
+  # households %>%
+  #   mutate(occupants = map_int(individuals, nrow),
+  #          laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
 }
