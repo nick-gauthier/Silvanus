@@ -4,7 +4,7 @@
 
 max_yield <- 1000 # theoretical maximum wheat yield, in kg/ha, should range from 1000 - 2000
 
-calorie_req <- 2582 * 365  # annual individual calorie requirement
+calorie_req <- 2785 * 365  # annual individual calorie requirement, alternatively 2582
 wheat_calories <- 3320 # calories in a kg of wheat
 wheat_calorie_prop <- 1 # percent of individual's food calories coming from wheat
 wheat_req <- calorie_req / wheat_calories * wheat_calorie_prop # kg of wheat to feed a person for 1 year

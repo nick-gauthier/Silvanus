@@ -24,7 +24,7 @@ population_dynamics <- function(x, food_ratio_c = 1){
       reproduce %>%
       die %>%
       mutate(age = age + 1L) %>% # happy birthday!
-      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
+      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio, relative_cal_need))
 
     if ('household' %in% names(x)) zoom_out2(new_individuals, x) else new_individuals
 
@@ -35,7 +35,7 @@ population_dynamics <- function(x, food_ratio_c = 1){
 reproduce <- function(individuals){
   individuals %>%
     mutate(fertility_reduction = pgamma(pmin(1, food_ratio), shape = fertility_shape, scale = fertility_scale),
-           reproduced = rbernoulli(n(), fertility_rate * fertility_reduction)) %>%
+           reproduced = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>% # divide by two to make everyone female
     filter(reproduced == TRUE) %>% # if nrows == 0, will give a (for some reason unsuppressible) warning
     {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
     tally %>% # count births per household
@@ -44,7 +44,7 @@ reproduce <- function(individuals){
     left_join(life_table, by = 'age') %>%
     bind_rows(individuals, .) %>%
     {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
-    fill(food_ratio) %>% #  group here so fill respects household membership while propagating food_ratio
+    fill(food_ratio) %>% #  group here so fill respects household membership while propagating food_ratio. This line is the bulk of the computational expense of the entire model ... refactor!
     ungroup
 }
 

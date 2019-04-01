@@ -23,9 +23,12 @@ library(sf)
 library(dplyr)
 library(purrr)
 library(furrr)
-library(tidyr)
 library(forcats)
 library(tidygraph)
+
+# lets use the development version of tidyr, because fill() is significantly faster in it
+#devtools::install_github("tidyverse/tidyr")
+library(tidyr)
 ```
 set seed for reproducability
 ```{r}
@@ -76,6 +79,7 @@ demographic_sim2  <-tibble(food_ratio = seq(0.1, 1, by = 0.005)) %>%
                           age = .,
                           population = map_dbl(age, length))))
 ```
+
 ```{r}
 demographic_sim2 %>%
   unnest %>%
@@ -86,15 +90,6 @@ demographic_sim2 %>%
   theme_bw()
 ```
 
-Reducing the food ratio from 1 to 0.8 increases infant mortality, resulting in an older and smaller population than without food limitation.
-
-```{r, echo = FALSE}
-ggplot(demographic_sim2, aes(age)) +
-  geom_histogram(binwidth = 1, center = 0) +
-  geom_vline(aes(xintercept = mean(age)), color = 'red', linetype = 2) +
-  labs(title = paste('Age distribution after', nsim, 'years'), subtitle = 'Red line = average age') +
-  theme_bw()
-```
 
 ```{r, eval = FALSE}
 profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_pop1))
@@ -104,7 +99,7 @@ profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_po
 
 ```{r}
 test_pop2 <- create_households(3)
-farming_sim <- accumulate(1:nsim, ~household_dynamics(.x, precipitation_c = 0.7, cultivable_area_c = 1) %>% population_dynamics, .init = test_pop2)
+farming_sim <- accumulate(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 1) %>% population_dynamics, .init = test_pop2)
 ```
 
 
@@ -117,9 +112,15 @@ farming_sim %>%
   geom_line() +
   theme_bw()
 ```
+```{r, eval = FALSE}
+profvis(reduce(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 40) %>% population_dynamics, .init = test_pop2))
+
+set.seed(1000)
+system.time(reduce(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 40) %>% population_dynamics, .init = test_pop2))
+```
 
 Look how the population growth rate changes over several 50 year time steps
-```{r}
+```{r, warning = FALSE}
 library(ggridges)
 farming_sim %>%
     bind_rows(.id = 'time') %>%
@@ -160,7 +161,7 @@ profvis(accumulate(1:100, ~household_dynamics(.x) %>% population_dynamics, .init
 Let's repeat this 50 times.
 ```{r, cache = TRUE}
 plan(multicore)
-farming_sim2 <- 1:50%>%
+farming_sim2 <- 1:50 %>%
   future_map(~ accumulate(1:nsim, ~household_dynamics(.x) %>% population_dynamics, .init = test_pop2)) %>%
   map_dfr(~suppressWarnings(bind_rows(., .id = 'time')), .id = 'rep') %>%
   mutate(time = as.numeric(time)) 
@@ -179,7 +180,7 @@ farming_sim2 %>%
 We can see from above that, in spite of the stochasticity, we converging on logistic growth. The inflection point above is at about year 250. We can replicate this using the discrete time logistic growth model with a carrying capacity of 150 and an intrinsic growth rate of 0.02, the typical value estimated for agrarian societies. Comparing our model's growth curve to the logistic equation shows our model has slightly slower growth, likely due to the extra stochasticity introduced by having discrete households rather than a single well-mixed population. In fact, a growth rate of ~0.017 fits better. But in the end, we can see logistic growth predicts a smooth transition to the carrying capacity, where in our model we have a sharper demographic transition. This is characteristic of food limited demography.
 
 ```{r}
-logistic_growth <- accumulate(1:500, ~.x * (1 + 0.017 * (1 - (.x / 150))), .init = 9) %>%
+logistic_growth <- accumulate(1:500, ~.x * (1 + 0.0176 * (1 - (.x / 125))), .init = 9) %>%
   tibble(time = 0:500, population = .)
 
 farming_sim2 %>%
@@ -213,11 +214,12 @@ farming_sim2 %>%
 ```
 
 
+
 # Settlement dynamics
 ```{r}
 world <- create_world()
 ggplot(world) +
-  geom_sf(aes(fill = precipitation), color = 'white') +
+  geom_sf(aes(fill = rainfall), color = 'white') +
   coord_sf(datum = NA) +
   scale_fill_viridis_c() +
   theme_void()
@@ -301,7 +303,7 @@ plot population vs urban area. so the maximum settlement we can hold in 1km has 
 tibble(population = seq(1,100000, 1000),
        area = 0.175 * population ^ 0.634) %>%
   ggplot(aes(population, area)) +
-  geom_line()
+  geom_line() 
 ```
 ```{r}
 vegetation <- tibble(stage = 0:50)
@@ -344,22 +346,17 @@ tibble(distance = 1:100,
 
 This is where the default demographic data that comes with the package gets made. Need to improve.
 ```{r, eval = FALSE}
-foodlim <- readr::read_csv('../../Foodlim_R_code/demog_vectors.csv')
+foodlim <- readr::read_csv('~/gdrive/Foodlim_R_code/demog_vectors.csv')
 
-fertility_table <- tibble(
+life_table <- tibble(
   age = 0:119,
-  fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70)) / 2 # divide by two to make everyone female
-)
-
-mortality_table <- tibble(
-  age = 0:119,
+  fertility_rate = c(rep(0, 12), 0.022, 0.022, 0.022, rep(c(0.232, 0.343, 0.367, 0.293, 0.218, 0.216, 0.134), each = 5), rep(0, 70)) ,
   survival_rate = (1 - c(0.381, rep(0.063, 4), rep(c(0.013, 0.010, 0.013, 0.016, 0.018, 0.020, 0.022, 0.024, 0.025, 0.033, 0.042, 0.062, 
                                                  0.084, 0.122, 0.175, 0.254, 0.376, 0.552, 0.816, 1, 1, 1, 1), each = 5))), # convert mortality rate to survival rate
-  survival_shape = foodlim$mortparms
+  survival_shape = foodlim$mortparms,
+  relative_cal_need = foodlim$rho
 )
-
-life_table <- left_join(fertility_table, mortality_table)
-usethis::use_data(life_table, internal =  TRUE, overwrite = TRUE)
+usethis::use_data(life_table, internal =TRUE, overwrite = TRUE)
 usethis::use_testthat()
 
 plot(fertility_table)
