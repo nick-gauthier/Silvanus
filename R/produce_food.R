@@ -14,7 +14,7 @@ produce_food <- function(households){
   households %>%
     mutate(yield = calc_climatic_yield(rainfall), # redundant now, but leaves room for later yield reductions due to farming labor
            yield_memory = yield, # again, redundant here but see below for older implementation to reincorporate in the future
-           harvest = land * yield * .5 - land * sowing_rate, # halve the yields to represent biennial fallow
+           harvest = land * (yield * .5 * (1 - tax) - sowing_rate), # halve the yields to represent biennial fallow
            total_cal_req = occupants * wheat_req,
            food_ratio = (storage + harvest) / total_cal_req,
            old_storage = storage,

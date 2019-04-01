@@ -67,7 +67,7 @@ allocate_land <- function(households){
 }
 
 calc_land_need <- function(occupants, yield, fallow = TRUE){
-  wheat_req * occupants * (1 + seed_proportion) / yield * ifelse(fallow, 2, 1)
+  wheat_req * occupants * (1 + seed_proportion) * (1 + tax) / yield * ifelse(fallow, 2, 1)
 }
 
 # need to replace this function with one that changes the value of labor based on the fraction available
