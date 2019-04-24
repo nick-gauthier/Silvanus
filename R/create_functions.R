@@ -18,8 +18,9 @@ create_world <- function(){
     st_sfc %>%
     st_make_grid(cellsize = 7000, square = FALSE) %>%
     st_sf %>%
-    mutate(rainfall = .5,
-           streamflow = 0,
+    mutate(rainfall = 0.7,
+           #streamflow = 0,
+           runoff = 0,
            area = st_area(geometry) * 1e-6,
            arable = 1,
            cultivable_area = area * arable) %>%
@@ -63,7 +64,8 @@ create_households <- function(n_households, rainfall_c = 1, n_individuals = 3){
            land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
            individuals = map(occupants, ~create_individuals(occupants = .)),
            occupants = map_int(individuals, nrow),
-           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow))
+           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow)) %>%
+    select(-rainfall) # need to figure out whether to do headless stuff from create_ functions or dynamics_ functions
 }
 
 #' @rdname create_settlement

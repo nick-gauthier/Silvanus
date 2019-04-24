@@ -12,7 +12,7 @@ wheat_req <- calorie_req / wheat_calories * wheat_calorie_prop # kg of wheat to 
 sowing_rate <- 135  # kg of wheat to sow a hectare (range 108 - 135 from Roman agronomists)
 seed_proportion <- 135 / max_yield # proportion of harvest to save as seed for next year's sowing
 
-tax <- 0.15 # proportion of yields consumed for taxation (typically 0 - 0.3)
+tax <- 0.2 # proportion of yields consumed for taxation (typically 0 - 0.3)
 
 labor_per_hectare <- 80 # person days required to farm a hectare (should range from ~ 50 to 135 for manual tilling, sowing, harvesting, and storing, from Halstead 2014)
 max_labor <- 280 # maximum days per year an individual can devote to farming

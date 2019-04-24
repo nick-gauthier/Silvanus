@@ -34,16 +34,16 @@
 #' @export
 #' @examples
 #' infrastructure_performance(maintainance_labor = 0.5)
-#' create_households(5) %>% mutate(streamflow = )
+#' create_households(5) %>% mutate(runoff = )
 allocate_time <- function(households, total_labor = 1, j = 0.2, k = 0.6, psi = 0.2, epsilon = 0.18){
   households %>%   #calculate optimum values for the different regions of the step function
     mutate(r1_maintainance = 0,
            r1_utility = yield_memory * land ^ (1 - j - k) * total_labor ^ j * rainfall ^ k,
            r3_maintainance = psi + epsilon,
-           r2_maintainance = pmin(pmax((1 / (j + k)) * (k * total_labor + j * (psi - epsilon) - 2 * j * epsilon * rainfall / streamflow),
+           r2_maintainance = pmin(pmax((1 / (j + k)) * (k * total_labor + j * (psi - epsilon) - 2 * j * epsilon * rainfall / runoff),
                                        0), r3_maintainance),
-           r2_utility = yield_memory * land ^ (1 - j - k) * (total_labor - r2_maintainance) ^ j * (streamflow / (2 * epsilon) * (r2_maintainance - psi + epsilon) + rainfall) ^ k,
-           r3_utlity = yield_memory * land ^ (1 - j - k) * (total_labor - psi - epsilon) ^ j * (streamflow + rainfall) ^ k,
+           r2_utility = yield_memory * land ^ (1 - j - k) * (total_labor - r2_maintainance) ^ j * (runoff / (2 * epsilon) * (r2_maintainance - psi + epsilon) + rainfall) ^ k,
+           r3_utlity = yield_memory * land ^ (1 - j - k) * (total_labor - psi - epsilon) ^ j * (runoff + rainfall) ^ k,
            max_utility = pmax(r1_utility, r2_utility, r3_utlity),
            farming_labor = if_else(max_utility == r3_utlity, 1 - r3_maintainance,
                                    if_else(max_utility == r2_utility, 1 - r2_maintainance, 1 - r1_maintainance))) %>%

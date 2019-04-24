@@ -14,6 +14,7 @@ testing
 ```{r}
 # libraries to help with this particular analysis
 library(ggplot2)
+library(ggridges)
 library(ggraph)
 library(profvis)
 
@@ -47,7 +48,7 @@ test_pop1 <- create_individuals(10, random = FALSE)
 Then run a 1,000 year simulation from each of the two initial populations.
 ```{r}
 plan(multicore)
-nsim <- 500
+nsim <- 600
 
 demographic_sim <- tibble(time = 0:nsim,
                           age = accumulate(1:nsim, ~population_dynamics(.x), .init = test_pop1),
@@ -57,12 +58,14 @@ demographic_sim <- tibble(time = 0:nsim,
 Look at the results.
 
 ```{r, echo = FALSE}
-demographic_sim %>%
+d1 <- demographic_sim %>%
   filter(time %in% c(0, 100, 200, 300, 400, 500)) %>%
   unnest %>%
-ggplot(aes(age)) +
+  group_by(time) %>%
+  mutate(median_age = median(age))
+ggplot(d1, aes(age)) +
   geom_histogram(binwidth = 1, center = 0) +
-  #geom_vline(aes(xintercept = mean(age), group = time), color = 'red', linetype = 2) +
+  geom_vline(aes(xintercept = median_age), color = 'red', linetype = 2) + # find a way to get median age to vary with facet
   facet_wrap(~time, scales = 'free_y') +
   labs(title = paste('Evolution of the age distribution over', nsim, 'years'), subtitle = 'Century snapshots') +
   theme_bw()
@@ -73,7 +76,7 @@ ggsave('age_distribution.png', height = 4, width = 6)
 Now we can look at a food-limited population.
 
 ```{r}
-demographic_sim2  <-tibble(food_ratio = seq(0.1, 1, by = 0.005)) %>%
+demographic_sim2  <- tibble(food_ratio = seq(0.1, 1, by = 0.05)) %>%
   mutate(sim = future_map(food_ratio, function(x) accumulate(1:nsim, ~population_dynamics(.x, food_ratio_c = x), .init = test_pop1)),
          sim = map(sim, ~tibble(time = 0:nsim,
                           age = .,
@@ -98,8 +101,8 @@ profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_po
 # Single settlement dynamics
 
 ```{r}
-test_pop2 <- create_households(3)
-farming_sim <- accumulate(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 1) %>% population_dynamics, .init = test_pop2)
+test_pop2 <- create_households(5)
+farming_sim <- accumulate(1:1000, ~household_dynamics(.x, rainfall_c = .7, cultivable_area_c = 40) %>% population_dynamics, .init = test_pop2)
 ```
 
 
@@ -113,15 +116,11 @@ farming_sim %>%
   theme_bw()
 ```
 ```{r, eval = FALSE}
-profvis(reduce(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 40) %>% population_dynamics, .init = test_pop2))
-
-set.seed(1000)
-system.time(reduce(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 40) %>% population_dynamics, .init = test_pop2))
+profvis(reduce(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 30) %>% population_dynamics, .init = test_pop2))
 ```
 
 Look how the population growth rate changes over several 50 year time steps
 ```{r, warning = FALSE}
-library(ggridges)
 farming_sim %>%
     bind_rows(.id = 'time') %>%
   mutate(time = as.numeric(time)) %>%
@@ -129,11 +128,11 @@ farming_sim %>%
   summarise(population = sum(occupants)) %>%
   mutate(old_pop = lag(population),
          rate = population / old_pop - 1,
-         time_step = c(0, rep(1:10, each = 50))) %>%
+         time_step = c(0, rep(1:10, each = 60))) %>%
   filter(time_step != 0) %>%
   ggplot(aes(rate, as.factor(time_step))) +
   geom_density_ridges() + 
-  scale_y_discrete(labels = seq(0, 500, by = 50)) +
+  scale_y_discrete(labels = seq(0, 600, by = 50)) +
   geom_vline(xintercept = 0, color ='red', linetype = 2) +
   labs(x = 'Population growth rate', y = 'Year') +
   theme_bw()
@@ -161,8 +160,8 @@ profvis(accumulate(1:100, ~household_dynamics(.x) %>% population_dynamics, .init
 Let's repeat this 50 times.
 ```{r, cache = TRUE}
 plan(multicore)
-farming_sim2 <- 1:50 %>%
-  future_map(~ accumulate(1:nsim, ~household_dynamics(.x) %>% population_dynamics, .init = test_pop2)) %>%
+farming_sim2 <- 1:8 %>%
+  future_map(~ accumulate(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 10) %>% population_dynamics, .init = test_pop2), .progress = TRUE) %>%
   map_dfr(~suppressWarnings(bind_rows(., .id = 'time')), .id = 'rep') %>%
   mutate(time = as.numeric(time)) 
 ```
@@ -180,8 +179,8 @@ farming_sim2 %>%
 We can see from above that, in spite of the stochasticity, we converging on logistic growth. The inflection point above is at about year 250. We can replicate this using the discrete time logistic growth model with a carrying capacity of 150 and an intrinsic growth rate of 0.02, the typical value estimated for agrarian societies. Comparing our model's growth curve to the logistic equation shows our model has slightly slower growth, likely due to the extra stochasticity introduced by having discrete households rather than a single well-mixed population. In fact, a growth rate of ~0.017 fits better. But in the end, we can see logistic growth predicts a smooth transition to the carrying capacity, where in our model we have a sharper demographic transition. This is characteristic of food limited demography.
 
 ```{r}
-logistic_growth <- accumulate(1:500, ~.x * (1 + 0.0176 * (1 - (.x / 125))), .init = 9) %>%
-  tibble(time = 0:500, population = .)
+logistic_growth <- accumulate(1:nsim, ~.x * (1 + 0.0176 * (1 - (.x / 1250))), .init = 9) %>%
+  tibble(time = 0:nsim, population = .)
 
 farming_sim2 %>%
   group_by(rep, time) %>%
@@ -196,9 +195,19 @@ farming_sim2 %>%
 
 ```{r}
 farming_sim2 %>%
+  filter(time == nsim + 1) %>%
+  group_by(rep) %>%
+  summarise(population = sum(occupants)) %>%
+  ggplot(aes(population)) +
+  geom_histogram(binwidth = 50) +
+  theme_bw()
+```
+
+```{r}
+farming_sim2 %>%
   group_by(time, rep) %>%
   summarise(population = sum(occupants)) %>%
-  filter(time %in% seq(0, 500, by = 50)) %>%
+  filter(time %in% seq(0, nsim, by = nsim/10)) %>%
   ggplot(aes(population, as.ordered(time))) +
   geom_density_ridges() +
   theme_ridges()
@@ -206,13 +215,58 @@ farming_sim2 %>%
 farming_sim2 %>%
   group_by(time, rep) %>%
   summarise(population = sum(occupants)) %>%
-  mutate(old_pop = lag(population),
+   mutate(old_pop = lag(population),
          rate = population / old_pop - 1) %>%
-  ggplot(aes(rate)) +
-  geom_density() +
+  filter(time %in% seq(1, 600, by = 50)) %>%
+  ggplot(aes(rate, as.factor(time))) +
+  geom_density_ridges() + 
+  scale_y_discrete(labels = seq(0, 600, by = 50)) +
+  geom_vline(xintercept = 0, color ='red', linetype = 2) +
+  labs(x = 'Population growth rate', y = 'Year') +
   theme_bw()
+
+
 ```
 
+```{r}
+plan(multicore)
+nsim <- 700
+farming_sim3 <- read_sf('../NA_env.shp') %>%
+  select(rainfall = prcpttn,
+         cultivable_area = cltvbl_) %>%
+  filter(!is.na(rainfall) & !is.na(cultivable_area)) %>%
+  mutate(sim = future_map2(rainfall, cultivable_area, function(x, y) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+
+
+  map_dfr(~suppressWarnings(bind_rows(., .id = 'time')), .id = 'rep') %>%
+  mutate(time = as.numeric(time)) 
+```
+
+
+```{r}
+farming_sim3 <- expand_grid(rainfall = seq(0.1, 1.5, by = 0.1), 
+       cultivable_area = seq(1, 41, by = 5)) %>%
+  bind_rows(., ., ., .) %>%
+  mutate(sim = future_map2(rainfall, cultivable_area, function(x, y) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+  map_dfr(~suppressWarnings(bind_rows(., .id = 'time')), .id = 'rep') %>%
+  mutate(time = as.numeric(time)) 
+```
+
+```{r}
+gam_Dat <- farming_sim3 %>% bind_rows %>% mutate(population = map_dbl(sim, ~.$population))
+
+library(mgcv)
+ggplot(gam_Dat, aes(cultivable_area, population)) +
+  geom_point()
+m1 <- gam(population ~ s(rainfall, k = 5) + s(cultivable_area, k = 5), data = gam_Dat, method = 'REML')
+m1 <- gam(population ~ te(rainfall, cultivable_area), data = gam_Dat, method = 'REML')
+
+plot(m1, scheme = 2)
+summary(m1)
+
+
+plot(seq(.3, 1.2, .1), calc_climatic_yield(seq(.3, 1.2, .1)))
+```
 
 
 # Settlement dynamics

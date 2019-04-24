@@ -17,7 +17,7 @@ produce_food <- function(households){
     group_by(household) %>%
     summarise(relative_calories = mean(relative_cal_need)) %>%
     left_join(households, ., by = 'household') %>%
-    mutate(yield = calc_climatic_yield(rainfall), # redundant now, but leaves room for later yield reductions due to farming labor
+    mutate(yield = climatic_yield, # redundant now, but leaves room for later yield reductions due to farming labor
            yield_memory = yield, # again, redundant here but see below for older implementation to reincorporate in the future
            harvest = land * (yield * .5 * (1 - tax) - sowing_rate), # halve the yields to represent biennial fallow
            total_cal_req = occupants * wheat_req * relative_calories,
