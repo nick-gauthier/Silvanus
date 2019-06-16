@@ -26,7 +26,7 @@ household_dynamics <- function(households, cultivable_area_c = 1, rainfall_c = 1
 
 household_census <- function(households){
   households %>%
-    unnest %>%
+    unnest(cols = c(individuals)) %>%
     group_by(household) %>%
     summarise(occupants = n(),
               laborers = sum(between(age, 15, 65))) %>%

@@ -14,7 +14,7 @@
 #'
 
 zoom_in2 <- function(x){
-  unnest(x) %>%
+  unnest(x, cols = c(individuals)) %>%
     select(household, food_ratio, age)
 }
 

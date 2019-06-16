@@ -10,7 +10,7 @@
 
 fission <- function(households, fission_rate = 0.2){
   check_fission <- households %>%
-    unnest %>%
+    unnest(cols = c(individuals)) %>%
     mutate(crowded = if_else(laborers > 5 & between(age, 15, 50), TRUE, FALSE),
            fission = rbernoulli(n(), p = ifelse(crowded, fission_rate, 0))) %>%
     group_by(household) %>%
@@ -28,5 +28,5 @@ fission <- function(households, fission_rate = 0.2){
 
   bind_households(old_households, new_households) %>%
     select(-c(crowded, fission, fissioners)) %>%
-    nest(age, .key = 'individuals')
+    nest(individuals = c(age))
 }
