@@ -12,11 +12,6 @@
 
 produce_food <- function(households){
   households %>%
-    unnest(individuals) %>%
-    left_join(life_table, by = 'age') %>%
-    group_by(household) %>%
-    summarise(relative_calories = mean(relative_cal_need)) %>%
-    left_join(households, ., by = 'household') %>%
     mutate(yield = climatic_yield, # redundant now, but leaves room for later yield reductions due to farming labor
            yield_memory = yield, # again, redundant here but see below for older implementation to reincorporate in the future
            harvest = land * (yield * .5 * (1 - tax) - sowing_rate), # halve the yields to represent biennial fallow
@@ -24,7 +19,7 @@ produce_food <- function(households){
            food_ratio = (storage + harvest) / total_cal_req,
            old_storage = storage,
            storage = if_else(total_cal_req <= storage, harvest, pmax(harvest - (total_cal_req - old_storage), 0))) %>%
-    select(-c(old_storage, total_cal_req, harvest, yield, relative_calories))
+    select(-c(old_storage, total_cal_req, harvest, yield))
 }
 
 calc_climatic_yield <- function(rainfall){

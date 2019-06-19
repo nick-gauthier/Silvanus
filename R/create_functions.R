@@ -64,7 +64,8 @@ create_households <- function(n_households, rainfall_c = 1, n_individuals = 3){
            land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
            individuals = map(occupants, ~create_individuals(occupants = .)),
            occupants = map_int(individuals, nrow),
-           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow)) %>%
+           laborers = map_dbl(individuals, ~filter(.x, between(age, 15, 65)) %>% nrow),
+           relative_calories = map_dbl(individuals, ~ left_join(., life_table, by = 'age') %>% pull(relative_cal_need) %>% mean)) %>%
     select(-rainfall) # need to figure out whether to do headless stuff from create_ functions or dynamics_ functions
 }
 
