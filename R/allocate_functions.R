@@ -9,6 +9,7 @@
 #'
 #' #' Infrastructure performance
 #'
+#'
 #' This function calculates the performance of irrigation
 #' infrastructure, given an amount of maintainance labor and
 #' parameters controling the scalability of the infrastructure.
