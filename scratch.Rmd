@@ -189,7 +189,7 @@ profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_po
 ```{r}
 nsim = 600
 test_pop2 <- create_households(10)
-set.seed(1000)
+  set.seed(1000)
 
 
 farming_sim <- accumulate(1:nsim, ~household_dynamics(.x, rainfall_c = 0.7, cultivable_area_c = 10) %>% population_dynamics, .init = test_pop2)

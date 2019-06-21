@@ -8,7 +8,7 @@ from purrr. Under the hood its doing the same thing as a for loop,
 but saving all the intervening steps for us to make plotting
 and analysis easier later.}
 \usage{
-run_simulation(input_data, nsim, replicates = 1)
+run_simulation(input_data, nsim, replicates = 1, intermediate = TRUE)
 }
 \arguments{
 \item{replicates}{}
@@ -22,5 +22,7 @@ and analysis easier later.
 }
 \examples{
 
+
+have an option for 'save intermediate files', then make decide whether to use reduce or accumulate
 
 }

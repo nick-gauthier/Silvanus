@@ -4,7 +4,7 @@
 \alias{produce_food}
 \title{Calcualte yields and whatnot}
 \usage{
-produce_food(households, precipitation)
+produce_food(households)
 }
 \arguments{
 \item{households}{Tibble of household agents.}

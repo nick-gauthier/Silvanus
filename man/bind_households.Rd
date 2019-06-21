@@ -12,3 +12,7 @@ bind_households(old_households, new_households)
 \description{
 Title
 }
+\examples{
+old_households <- create_households(4);new_households <- create_households(5) \%>\% mutate(household = NA)
+
+}

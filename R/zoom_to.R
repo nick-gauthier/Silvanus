@@ -1,4 +1,4 @@
-#' Title
+#' Zoom functions
 #'
 #' These are  internal convencience functions used by the *_dynamics commands
 #' that allow functions meant for one level to be called from another level.
@@ -14,17 +14,23 @@
 #'
 
 zoom_in2 <- function(x){
-  unnest(x, cols = c(individuals)) %>%
-    select(household, food_ratio, age)
+  unnest(x, cols = c(individuals)) #%>%
+   #select(household, food_ratio, age)
 }
 
 
 zoom_out2 <- function(x, y){
+  cal_need <- x %>%
+    group_by(household) %>%
+    summarise(relative_calories = mean(relative_cal_need))
+  x <- select(x, -relative_cal_need)
+
   y %>%
-    select(-individuals) %>%
+    select(-individuals, - relative_calories) %>%
     nest_join(x, by = 'household', name = 'individuals') %>%
-    household_census() %>%
-    filter(occupants > 0)
+      left_join(cal_need, by = 'household') %>%
+      household_census() %>%
+      filter(occupants > 0)
 }
 # zoom_in <- function(x, level){
 # # what does all this nesting and unnesting do to the "unique' hh id factor levels?
