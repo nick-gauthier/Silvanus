@@ -33,8 +33,8 @@ library(tidygraph)
 library(tidyr)
 
 
-#devtools::build(vignettes = FALSE)
-#install.packages("~/gdrive/Projects/Silvanus_0.1.0.tar.gz", repos = NULL, type = "source")
+# devtools::build(vignettes = FALSE)
+# install.packages("~/gdrive/Projects/Silvanus_0.1.0.tar.gz", repos = NULL, type = "source")
 library(Silvanus)
 ```
 set seed for reproducability
@@ -66,7 +66,7 @@ Look at the results.
 ```{r, fig.width = 6, fig.height = 6, echo = FALSE}
 a <-   ggplot(demographic_sim, aes(time, dependency_ratio))+
   geom_line() +
-  labs(x = 'Year', y = 'Dependecy ratio') +
+  labs(x = 'Year', y = 'Dependency ratio') +
   theme_bw()
 d1 <- demographic_sim %>%
   filter(time %in% c(0, 100, 200, 300, 400, 500)) %>%
@@ -78,6 +78,7 @@ b <- ggplot(d1, aes(age)) +
   geom_histogram(binwidth = 1, center = 0) +
   geom_vline(aes(xintercept = median_age), color = 'red', linetype = 2) + # find a way to get median age to vary with facet
   facet_wrap(~time, scales = 'free_y') +
+  labs(x = 'Age', y = 'Count') +
  # labs(title = paste('Evolution of the age distribution over', nsim, 'years'), subtitle = 'Century snapshots') +
   theme_bw()
 
@@ -85,6 +86,42 @@ a / b + plot_annotation(tag_levels = 'A')
 
 ggsave('age_structure.png', height = 6, width = 6)
 ```
+
+```{r}
+library(gganimate)
+a1 <- ggplot(demographic_sim, aes(time, dependency_ratio))+
+  geom_line() +
+  geom_point(size = 2) +
+  labs(x = 'Year', y = 'Dependency ratio') +
+  theme_bw() +
+  transition_reveal(time)
+
+b1 <- ggplot(unnest(demographic_sim, cols = age), aes(age)) +
+  geom_histogram(binwidth = 1, center = 0) +
+  labs(title = 'Age distribution in year {frame_time}') +
+  theme_bw() +
+    labs(x = 'Age', y = 'Count') +
+  transition_time(time) +
+  view_follow(fixed_x = TRUE)
+
+
+a2 <- animate(a1, width = 6, height = 3, res = 300, units = 'in')
+b2 <- animate(b1, width = 6, height = 3, res = 300, units = 'in')
+
+library(magick)
+a_mgif <- image_read(a2)
+b_mgif <- image_read(b2)
+
+new_gif <- image_append(c(a_mgif[1], b_mgif[1]))
+for(i in 2:100){
+  combined <- image_append(c(a_mgif[i], b_mgif[i]))
+  new_gif <- c(new_gif, combined)
+}
+
+
+anim_save('age_structure.gif', new_gif)
+```
+
 
 what's the variability in growth rates? 1.3 - 1.4% 1.357% to be exact
 ```{r}
@@ -205,8 +242,7 @@ farming_sim %>%
   geom_line() +
   theme_bw()
 
-
-    farming_sim %>%
+farming_sim %>%
   bind_rows(.id = 'time') %>%
   group_by(time) %>%
   summarise(food_ratio = median(food_ratio)) %>%
@@ -361,15 +397,16 @@ farming_sim2 %>%
   summarise(population = sum(occupants)) %>% 
   pull(population) %>%
   sd
+```
+
+```{r}
 capacity <- farming_sim2 %>%
   filter(time == nsim + 1) %>%
   group_by(rep) %>%
   summarise(population = sum(occupants)) %>% 
   pull(population) %>%
   mean
-```
 
-```{r}
 logistic_growth <- accumulate(1:nsim, ~.x * (1 + 0.0135 * (1 - (.x / capacity))), .init = 35) %>%
   tibble(time = 0:nsim, population = .)
 exponential_growth <- accumulate(1:nsim, ~.x * (1 + 0.0135), .init = 35) %>%
@@ -400,6 +437,24 @@ farming_sim2 %>%
   ggplot(aes(age)) +
   geom_histogram() +
   facet_wrap(~time)
+```
+
+```{r}
+library(gganimate)
+farming_sim2 %>%
+  group_by(rep, time) %>%
+  summarise(population = sum(occupants)) %>%
+  ggplot(aes(time, (population))) +
+  geom_line(aes(group = rep), alpha = 0.1) +
+  # geom_line(data = logistic_growth, size = 1.2, aes(color = 'blue')) +
+   #  geom_line(data = exponential_growth, size = 1.2,color = 'yellow') +
+  #geom_smooth(size = 1.2, se = FALSE, aes(color = 'red')) +
+  labs(x = 'Simulation Year', y = 'Population') +
+  geom_hline(yintercept = capacity, color = 'red', linetype = 2) +
+  scale_color_manual(name = '', values =c('red'='red', 'blue'='blue'), labels = c('Logistic growth curve', 'Average growth curve')) +
+  theme_classic() +
+  theme(legend.position = c(.7,.4)) +
+  transition_reveal(time)
 ```
 
 
@@ -466,19 +521,45 @@ test_dat %>%
   summarise(sd  = sd((population))) %>% ggplot(aes(time, sd)) + geom_line()
 ```
 
-
 ```{r}
-plan(multisession)
-nsim <- 700
-farming_sim3 <- read_sf('../NA_env.shp') %>%
+test_pop2 <- create_households(10)
+
+nsim <- 600
+dat <- read_sf('../NA_env.shp') %>%
   select(rainfall = prcpttn,
-         cultivable_area = cltvbl_) %>%
-  filter(!is.na(rainfall) & !is.na(cultivable_area)) %>%
-  mutate(sim = future_map2(rainfall, cultivable_area, function(x, y) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+         cultivable_area = cltvbl_,
+         runoff,
+         rainfall_200 = prc_200,
+         runoff_200 = rnf_200) %>%
+  mutate(runoff = runoff / 1000,
+         runoff_200 = runoff_200 / 1000) %>%
+  filter(!is.na(rainfall) & !is.na(cultivable_area) & !is.na(runoff)) %>%
+  sample_frac(1L)
 
+plan(multisession)
+set.seed(1000)
+farming_sim3 <- dat %>%
+  mutate(sim = future_pmap(list(rainfall, cultivable_area, runoff), function(x, y, z) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y, runoff_c = 0) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+plan(multisession)
 
-  map_dfr(~suppressWarnings(bind_rows(., .id = 'time')), .id = 'rep') %>%
-  mutate(time = as.numeric(time)) 
+set.seed(1000)
+farming_sim4 <- dat %>%
+  mutate(sim = future_pmap(list(rainfall, cultivable_area, runoff), function(x, y, z) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y, runoff_c = z) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+plan(multisession)
+
+set.seed(1000)
+farming_sim5 <- dat %>%
+  mutate(sim = future_pmap(list(rainfall_200, cultivable_area, runoff_200), function(x, y, z) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y, runoff_c = 0) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+plan(multisession)
+
+set.seed(1000)
+farming_sim6 <- dat %>%
+  mutate(sim = future_pmap(list(rainfall_200, cultivable_area, runoff_200), function(x, y, z) (reduce(1:nsim, ~household_dynamics(.x, rainfall_c = x, cultivable_area_c = y, runoff_c = z) %>% population_dynamics, .init = test_pop2) %>% summarise(population = sum(occupants))), .progress = TRUE))
+
+saveRDS(farming_sim3, 'eqpop_nomigration_noirrigation')
+saveRDS(farming_sim4, 'eqpop_nomigration_irrigation')
+saveRDS(farming_sim5, 'eqpop_nomigration_noirrigation_CE200')
+saveRDS(farming_sim6, 'eqpop_nomigration_irrigation_CE200')
 ```
 
 

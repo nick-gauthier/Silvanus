@@ -25,7 +25,7 @@ population_dynamics <- function(x, food_ratio_c = 1){
       reproduce %>%
       die %>%
       mutate(age = age + 1L) %>% # happy birthday!
-      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived))
+      select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
 
     if ('household' %in% names(x)){
       new_individuals %>%
@@ -55,9 +55,8 @@ reproduce <- function(individuals){
     mutate(age = 0) %>%
     left_join(life_table, by = 'age') %>%
     bind_rows(individuals, .) %>%
-    {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
-    fill(-household) %>% #  group here so fill respects household membership while propagating food_ratio. This line is the bulk of the computational expense of the entire model ... refactor!
-    ungroup
+    {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) %>% fill(-household)  else fill(., food_ratio)} %>% #  group here so fill respects household membership while propagating food_ratio. This line is the bulk of the computational expense of the entire model ... refactor!
+    ungroup # check for filled na's here?
 }
 
 #currently newborns age at the end of the time step, so technically there never are any newborns.
