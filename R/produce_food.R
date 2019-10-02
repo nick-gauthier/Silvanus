@@ -10,7 +10,7 @@
 #' @examples
 #'
 
-produce_food <- function(households){
+produce_food <- function(households) {
   households %>%
     mutate(yield = climatic_yield, # redundant now, but leaves room for later yield reductions due to farming labor
            yield_memory = yield, # again, redundant here but see below for older implementation to reincorporate in the future
@@ -22,11 +22,11 @@ produce_food <- function(households){
     select(-c(old_storage, total_cal_req, harvest, yield))
 }
 
-calc_climatic_yield <- function(rainfall){
+calc_climatic_yield <- function(rainfall) {
   max_yield * pmax(0, 0.51 * log(rainfall) + 1.03)  # annual rainfall impact on yields
 }
 
-# farm <- function(households){
+# farm <- function(households) {
 #   households %>%
 #     mutate(yield = climatic_yield, #* n_inhabitants ^ labor_elasticity,
 #            yield_memory = yield, #map2(yield_memory, yield, remember),
@@ -35,13 +35,13 @@ calc_climatic_yield <- function(rainfall){
 # }
 #
 #
-# remember <- function(yield_memory, yield){
+# remember <- function(yield_memory, yield) {
 #   # rnorm(1, yield, yield * 0.0333) %>%  #memory is fuzzy
 #   append(yield_memory[-length(yield_memory)], yield, after = 0) # remove the last entry in the vector and add new yield to the begining
 # }
 #
 #
 # #Agents use the peak-end rule when accessing memory.
-# peak_end <- function(x){
+# peak_end <- function(x) {
 #   map_dbl(x, ~mean(c(.x[1], min(.x))))
 # }

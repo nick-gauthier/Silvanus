@@ -11,7 +11,7 @@
 #' create_household(4)
 #' create_occupant(4)
 
-create_world <- function(){
+create_world <- function() {
   rbind(c(0, 0), c(50000, 0), c(50000, 50000), c(0, 50000), c(0, 0)) %>%
     list %>%
     st_polygon %>%
@@ -27,7 +27,7 @@ create_world <- function(){
     select(-area, -arable)
 }
 
-create_settlements <- function(world, n_households = 3){
+create_settlements <- function(world, n_households = 3) {
   n_settlements <- nrow(world)
 
   pts <- world %>%
@@ -36,8 +36,8 @@ create_settlements <- function(world, n_households = 3){
 
   world %>%
     mutate(settlement = forcats::fct_explicit_na(as.factor(1:n())),
-           x = pts[,1],
-           y = pts[,2],
+           x = pts[, 1],
+           y = pts[, 2],
            xy = st_centroid(st_geometry(world)),
            n_households = n_households) %>%
     select(settlement, everything()) %>% # move settlement id to first column
@@ -53,26 +53,26 @@ create_settlements <- function(world, n_households = 3){
 
 #' @rdname create_settlement
 
-create_households <- function(n_households, rainfall_c = 1, n_individuals = 3){
+create_households <- function(n_households, rainfall_c = 1, n_individuals = 3) {
   tibble(household = forcats::fct_explicit_na(as.factor(1:n_households)),
          occupants = n_individuals,
          storage = occupants * wheat_req, # start off with a year's supply of food
          farming_labor = 1,
          food_ratio = 1) %>%
-    {if (!('rainfall' %in% names(.))) mutate(., rainfall = rainfall_c) else .} %>%
+    {if (!("rainfall" %in% names(.))) mutate(., rainfall = rainfall_c) else .} %>%
     mutate(yield_memory = calc_climatic_yield(rainfall), # fond memories
            land = calc_land_need(occupants, yield_memory), # technically they can get more land than is available, should put in a check for this
            individuals = map(occupants, ~create_individuals(occupants = .)),
            occupants = map_int(individuals, nrow),
            laborers = map_dbl(individuals, ~filter(.x, between(age, min_labor_age, max_labor_age)) %>% nrow),
-           relative_calories = map_dbl(individuals, ~ left_join(., life_table, by = 'age') %>% pull(relative_cal_need) %>% mean)) %>%
+           relative_calories = map_dbl(individuals, ~ left_join(., life_table, by = "age") %>% pull(relative_cal_need) %>% mean)) %>%
     select(-rainfall) # need to figure out whether to do headless stuff from create_ functions or dynamics_ functions
 }
 
 #' @rdname create_settlement
 
-create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25L){
-  # if(random_ages == FALSE){
+create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25L) {
+  # if(random_ages == FALSE) {
   #   tibble(age = rep(age, occupants)) # if random is FALSE, set ages to age
   # } else tibble(age = sample.int(80, size = occupants, replace = TRUE)) # if random TRUE, random ages under 80
   tibble(age = rep(age, occupants))

@@ -6,13 +6,13 @@
 #' @examples
 #' allocate_time(households)
 
-household_dynamics <- function(households, cultivable_area_c = 1, rainfall_c = 1, streamflow_c = 0, runoff_c = 0){
-  if(nrow(households) > 0){
+household_dynamics <- function(households, cultivable_area_c = 1, rainfall_c = 1, streamflow_c = 0, runoff_c = 0) {
+  if (nrow(households) > 0) {
     households %>%
-    {if (!('cultivable_area' %in% names(.))) mutate(., cultivable_area = cultivable_area_c) else .} %>%
-    {if (!('rainfall' %in% names(.))) mutate(., rainfall = rainfall_c) else .} %>%
-    #{if (!('streamflow' %in% names(.))) mutate(., streamflow = streamflow_c) else .} %>%
-    {if (!('runoff' %in% names(.))) mutate(., runoff = runoff_c) else .} %>%
+    {if (!("cultivable_area" %in% names(.))) mutate(., cultivable_area = cultivable_area_c) else .} %>%
+    {if (!("rainfall" %in% names(.))) mutate(., rainfall = rainfall_c) else .} %>%
+    #{if (!("streamflow" %in% names(.))) mutate(., streamflow = streamflow_c) else .} %>%
+    {if (!("runoff" %in% names(.))) mutate(., runoff = runoff_c) else .} %>%
       allocate_time %>%
       allocate_land %>%
       irrigate %>%

@@ -13,21 +13,21 @@
 #' @examples
 #' population_dynamics(individuals, food_ratio = 1)
 
-population_dynamics <- function(x, food_ratio_c = 1){
+population_dynamics <- function(x, food_ratio_c = 1) {
   if (nrow(x) > 0) {
-    if ('settlement' %in% names(x)) {}
+    if ("settlement" %in% names(x)) {}
 
-    if ('household' %in% names(x)) individuals <- unnest(x, cols = c(individuals)) else individuals <- x
+    if ("household" %in% names(x)) individuals <- unnest(x, cols = c(individuals)) else individuals <- x
 
     new_individuals <- individuals %>%
-      left_join(life_table, by = 'age') %>% # get vital rates corresponding to age
-      {if (!('food_ratio' %in% names(.))) mutate(., food_ratio = food_ratio_c) else .} %>%
+      left_join(life_table, by = "age") %>% # get vital rates corresponding to age
+      {if (!("food_ratio" %in% names(.))) mutate(., food_ratio = food_ratio_c) else .} %>%
       reproduce %>%
       die %>%
       mutate(age = age + 1L) %>% # happy birthday!
       select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
 
-    if ('household' %in% names(x)){
+    if ("household" %in% names(x)) {
       new_individuals %>%
         fission %>%
         group_by(household) %>%
@@ -44,18 +44,18 @@ population_dynamics <- function(x, food_ratio_c = 1){
 }
 
 #still a fertility reduction of 0.981 when food ratio is 1. fix.
-reproduce <- function(individuals){
+reproduce <- function(individuals) {
   individuals %>%
     mutate(fertility_reduction = pgamma(food_ratio, shape = fertility_shape, scale = fertility_scale),
            reproduced = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>% # divide by two to make everyone female
     filter(reproduced == TRUE) %>% # if nrows == 0, will give a (for some reason unsuppressible) warning
-    {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
+    {if (("household" %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
     tally %>% # count births per household
     uncount(n) %>% # repeat rows based on birth count per household
     mutate(age = 0) %>%
-    left_join(life_table, by = 'age') %>%
+    left_join(life_table, by = "age") %>%
     bind_rows(individuals, .) %>%
-    {if (('household' %in% names(.)) & (nrow(.) > 0)) group_by(., household) %>% fill(-household)  else fill(., food_ratio)} %>% #  group here so fill respects household membership while propagating food_ratio. This line is the bulk of the computational expense of the entire model ... refactor!
+    {if (("household" %in% names(.)) & (nrow(.) > 0)) group_by(., household) %>% fill(-household)  else fill(., food_ratio)} %>% #  group here so fill respects household membership while propagating food_ratio. This line is the bulk of the computational expense of the entire model ... refactor!
     ungroup # check for filled na's here?
 }
 
@@ -66,7 +66,7 @@ reproduce <- function(individuals){
 
 #' @rdname reproduce
 
-die <- function(individuals, food_ratio){
+die <- function(individuals, food_ratio) {
   individuals %>%
     mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survival_shape, scale = survivor_scale),
            survived = rbernoulli(n(), survival_rate * survival_reduction)) %>%
@@ -74,7 +74,7 @@ die <- function(individuals, food_ratio){
 }
 
 
-fission <- function(individuals, fission_rate = 0.2){
+fission <- function(individuals, fission_rate = 0.2) {
   check_fission <- individuals %>%
     mutate(crowded = if_else(laborers > 5 & between(age, min_labor_age, max_labor_age), TRUE, FALSE),
            fission = rbernoulli(n(), p = ifelse(crowded, fission_rate, 0))) %>%
@@ -94,4 +94,3 @@ fission <- function(individuals, fission_rate = 0.2){
   bind_households(old_households, new_households) %>%
     select(-c(crowded, fission, fissioners))
 }
-

@@ -7,7 +7,7 @@
 #' @examples
 #' allocate_time(households)
 
-environmental_dynamics <- function(settlements){
+environmental_dynamics <- function(settlements) {
   settlements %>%
     mutate(total_land = map_dbl(households, ~sum(.$land)),
            total_maintainance = map_dbl(households, ~ sum(1 - .$farming_labor)),
@@ -20,11 +20,11 @@ environmental_dynamics <- function(settlements){
 }
 
 
-calc_climatic_yield <- function(precipitation){
+calc_climatic_yield <- function(precipitation) {
   max_yield * pmax(0, 0.51 * log(precipitation) + 1.03)  # annual precipitation impact on yields
 }
 
-calc_yield_reduction <- function(fertility, climate_yield){
+calc_yield_reduction <- function(fertility, climate_yield) {
   climate_yield * pmax(0, 0.19 * log(fertility / 100) + 1)  # fertility impact on yields
 }
 #

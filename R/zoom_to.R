@@ -13,13 +13,13 @@
 #' @examples
 #'
 
-zoom_in2 <- function(x){
+zoom_in2 <- function(x) {
   unnest(x, cols = c(individuals)) #%>%
    #select(household, food_ratio, age)
 }
 
 
-zoom_out2 <- function(x, y){
+zoom_out2 <- function(x, y) {
   cal_need <- x %>%
     group_by(household) %>%
     summarise(relative_calories = mean(relative_cal_need))
@@ -27,17 +27,17 @@ zoom_out2 <- function(x, y){
 
   y %>%
     select(-individuals, - relative_calories) %>%
-    nest_join(x, by = 'household', name = 'individuals') %>%
-      left_join(cal_need, by = 'household') %>%
+    nest_join(x, by = "household", name = "individuals") %>%
+      left_join(cal_need, by = "household") %>%
       household_census() %>%
       filter(occupants > 0)
 }
-# zoom_in <- function(x, level){
-# # what does all this nesting and unnesting do to the "unique' hh id factor levels?
-#   #if ('settlement' %in% names(x)){
+# zoom_in <- function(x, level) {
+# # what does all this nesting and unnesting do to the "unique" hh id factor levels?
+#   #if ("settlement" %in% names(x)) {
 #   #  x %N>%
 #   #}
-#   if (level == 'individuals') {
+#   if (level == "individuals") {
 #
 #
 #
@@ -56,12 +56,12 @@ zoom_out2 <- function(x, y){
 #
 #     new_households <- old_households %>%
 #       select(-individuals) %>%
-#       nest_join(new_individuals, by = c('settlement', 'household'), name = 'individuals') %>%
+#       nest_join(new_individuals, by = c("settlement", "household"), name = "individuals") %>%
 #       household_census()
 #   }
 #
 #
-#   if (level == 'households'){
+#   if (level == "households") {
 #     old_settlements <- settlements %N>%
 #       as_tibble()
 #
@@ -73,19 +73,19 @@ zoom_out2 <- function(x, y){
 #
 # }
 #
-# zoom_out <- function(from, to){
+# zoom_out <- function(from, to) {
 #     new_settlements <- old_settlements %>%
 #       select(-households) %>%
-#       nest_join(new_households, by = 'settlement', name = 'households') %>%
+#       nest_join(new_households, by = "settlement", name = "households") %>%
 #       select(settlement, households)
 #
 #     to %>%
 #       select(-households) %>%
-#       left_join(from, by = 'settlement')
+#       left_join(from, by = "settlement")
 #     # so the question is do we want healdess be a way to differentiate create_ functions or _dynamics functions
 # }
 #
-# add_groups <- function(x){
-#   {if ('settlement' %in% names(x)) group_by(x, settlement) else x} %>%
-#   {if ('household' %in% names(.)) group_by(., household, add = TRUE) else .}
+# add_groups <- function(x) {
+#   {if ("settlement" %in% names(x)) group_by(x, settlement) else x} %>%
+#   {if ("household" %in% names(.)) group_by(., household, add = TRUE) else .}
 # }

@@ -32,7 +32,6 @@ library(tidygraph)
 # devtools::install_github("tidyverse/tidyr")
 library(tidyr)
 
-
 # devtools::build(vignettes = FALSE)
 # install.packages("~/gdrive/Projects/Silvanus_0.1.0.tar.gz", repos = NULL, type = "source")
 library(Silvanus)
@@ -58,7 +57,7 @@ nsim <- 500
 demographic_sim <- tibble(time = 0:nsim,
                           age = accumulate(1:nsim, ~population_dynamics(.x), .init = test_pop1),
                           population = map_dbl(age, length)) %>%
-  mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)
+  mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65)) / sum(between(.x, 15, 65))) * 100)
 ```
 
 Look at the results.
