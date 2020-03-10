@@ -1,0 +1,170 @@
+---
+title: "Population Dynamics"
+author: "Vignette Author"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Population Dynamics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+library(Silvanus)
+library(furrr)
+```
+
+
+```{r}
+set.seed(1000) # set seed for reproducibility
+```
+
+
+First we'll create a test population of 15 25-year-olds.
+
+```{r}
+test_pop1 <- create_individuals(15)
+```
+
+Then run a 500 year simulation from that initial population
+```{r}
+nsim <- 500
+
+demographic_sim <- tibble(time = 0:nsim,
+                          age = accumulate(1:nsim, ~population_dynamics(.x), .init = test_pop1),
+                          population = map_dbl(age, length)) %>%
+  mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65)) / sum(between(.x, 15, 65))) * 100)
+```
+
+Look at the results.
+
+## Dependency ratio
+
+```{r, fig.width = 6, fig.height = 6, echo = FALSE}
+a <-   ggplot(demographic_sim, aes(time, dependency_ratio))+
+  geom_line() +
+  labs(x = 'Year', y = 'Dependency ratio') +
+  theme_bw()
+d1 <- demographic_sim %>%
+  filter(time %in% c(0, 100, 200, 300, 400, 500)) %>%
+  unnest(cols = age) %>%
+  mutate(time = paste('Year', time)) %>%
+  group_by(time) %>%
+  mutate(median_age = median(age))
+b <- ggplot(d1, aes(age)) +
+  geom_histogram(binwidth = 1, center = 0) +
+  geom_vline(aes(xintercept = median_age), color = 'red', linetype = 2) + # find a way to get median age to vary with facet
+  facet_wrap(~time, scales = 'free_y') +
+  labs(x = 'Age', y = 'Count') +
+ # labs(title = paste('Evolution of the age distribution over', nsim, 'years'), subtitle = 'Century snapshots') +
+  theme_bw()
+
+a / b + plot_annotation(tag_levels = 'A')
+```
+
+## Growth rates
+
+
+what's the variability in growth rates? 1.3 - 1.4% 1.357% to be exact
+```{r}
+plan(multisession)
+
+r_test <- future_map(1:250, ~ 
+                       tibble(time = 0:600,
+                          age = accumulate(1:600, ~population_dynamics(.x), .init = test_pop1),
+                          population = map_dbl(age, length)) %>%
+                       select(-age),.progress = TRUE) %>%
+  bind_rows(.id = 'rep')
+```
+
+
+```{r}
+m1 <- glm(population ~ time, data = filter(r_test, time > 200), family = gaussian(link = 'log'))
+summary(m1)
+```
+
+```{r, echo = FALSE}
+r_test %>% mutate(population = log(population)) %>% 
+  filter(time %in% c(500, 600)) %>%
+  spread(time, population) %>%
+  mutate(r = (`600` - `500`) / 100) %>%
+  pull(r) %>% 
+  hist
+
+r_test %>%
+  ggplot(aes(time, log(population))) +
+  geom_line(alpha = .1, aes(group = rep)) +
+  geom_smooth() +
+  theme_classic()
+```
+
+## Food limited
+Now we can look at a food-limited population.
+
+```{r}
+demographic_sim2  <- expand_grid(rep = 1:10, food_ratio = seq(0.7, 1, by = 0.01)) %>%
+  mutate(sim = future_map(food_ratio, function(x) accumulate(1:nsim, ~population_dynamics(.x, food_ratio_c = x), .init = test_pop1), .progress = TRUE),
+         sim = map(sim, ~tibble(time = 0:nsim,
+                          age = .,
+                          population = map_dbl(age, length)) %>%   mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)))
+    ```
+
+```{r}
+demographic_sim2 %>% unnest(sim) %>% pull(population) %>% max
+
+
+1e4
+```
+
+```{r}
+demographic_sim2 %>% unnest %>%  filter(time == nsim) %>%
+  ggplot(aes(food_ratio, population, group = food_ratio)) +
+  geom_boxplot() +
+  theme_classic()
+
+demographic_sim2 %>% unnest %>%  filter(time == nsim) %>%
+  ggplot(aes(food_ratio, dependency_ratio, group = food_ratio)) +
+  geom_boxplot()
+```
+
+```{r}
+demographic_sim2 %>%
+  unnest %>%
+  filter(food_ratio >= .8) %>%
+  ggplot(aes(time, population, group =interaction(rep, food_ratio), color = food_ratio)) +
+  geom_line(alpha = .5) +
+  scale_y_continuous(trans = 'log') +
+  scale_color_viridis_c() +
+  theme_bw()
+```
+## Drought response
+```{r}
+nsim <- 500
+rn <- c(rep(1, 400), rep(.5, 10), rep(1, 90))
+demographic_sim3 <- tibble(time = 0:nsim,
+                          age = accumulate(rn, ~population_dynamics(.x, food_ratio_c = .y), .init = test_pop1),
+                          population = map_dbl(age, length)) %>%
+  mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)
+```
+
+```{r}
+ggplot(demographic_sim3, aes(time, population)) + geom_line()
+
+
+ggplot(demographic_sim3, aes(time, dependency_ratio)) + geom_line()
+```
+
+
+```{r, eval = FALSE}
+profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_pop1))
+```
