@@ -2,12 +2,15 @@
 % Please edit documentation in R/zoom_to.R
 \name{zoom_in2}
 \alias{zoom_in2}
-\title{Title}
+\title{Zoom functions}
 \usage{
 zoom_in2(x)
 }
 \arguments{
 \item{FUN}{}
+}
+\value{
+
 }
 \description{
 These are  internal convencience functions used by the *_dynamics commands

@@ -56,13 +56,13 @@ reproduce <- function(individuals) {
     left_join(life_table, by = "age") %>%
     bind_rows(individuals, .) %>%
     {if (("household" %in% names(.)) & (nrow(.) > 0)) group_by(., household) %>% fill(-household)  else fill(., food_ratio)} %>% #  group here so fill respects household membership while propagating food_ratio. This line is the bulk of the computational expense of the entire model ... refactor!
-    ungroup # check for filled na's here?
+    ungroup # check for filled NA's here?
 }
 
-#currently newborns age at the end of the time step, so technically there never are any newborns.
+# currently newborns age at the end of the time step, so technically there never are any newborns.
 # so perhaps age 0 should be different from newborns. that is, the model year of birth is like gestation.
 # if you are born, there's no chance of dying, but your age is NA. Next year, your age is 0 and there is a chance of dying.
-#basically I wonder if there current implementation "misses" a year of life. Something to think about, although its not a huge deal rn.
+# basically, I wonder if there current implementation "misses" a year of life. Something to think about, although its not a huge deal rn.
 
 #' @rdname reproduce
 

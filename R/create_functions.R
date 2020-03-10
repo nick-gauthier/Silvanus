@@ -9,7 +9,7 @@
 #' @examples
 #' create_settlement(4)
 #' create_household(4)
-#' create_occupant(4)
+#' create_individuals(4)
 
 create_world <- function() {
   rbind(c(0, 0), c(50000, 0), c(50000, 50000), c(0, 50000), c(0, 0)) %>%
@@ -52,7 +52,7 @@ create_settlements <- function(world, n_households = 3) {
 }
 
 #' @rdname create_settlement
-
+#' @export
 create_households <- function(n_households, rainfall_c = 1, n_individuals = 3) {
   tibble(household = forcats::fct_explicit_na(as.factor(1:n_households)),
          occupants = n_individuals,
@@ -70,8 +70,8 @@ create_households <- function(n_households, rainfall_c = 1, n_individuals = 3) {
 }
 
 #' @rdname create_settlement
-
-create_individuals <- function(occupants = 4, random_ages = FALSE, age = 25L) {
+#' @export
+create_individuals <- function(occupants = 4, age = 25L) {
   # if(random_ages == FALSE) {
   #   tibble(age = rep(age, occupants)) # if random is FALSE, set ages to age
   # } else tibble(age = sample.int(80, size = occupants, replace = TRUE)) # if random TRUE, random ages under 80

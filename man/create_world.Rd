@@ -21,5 +21,5 @@ Functions for creating individuals, households, and settlements
 \examples{
 create_settlement(4)
 create_household(4)
-create_occupant(4)
+create_individuals(4)
 }

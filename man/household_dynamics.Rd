@@ -4,8 +4,13 @@
 \alias{household_dynamics}
 \title{Household Dynamics}
 \usage{
-household_dynamics(households, cultivable_area_c = 1, rainfall_c = 1,
-  streamflow_c = 0, runoff_c = 0)
+household_dynamics(
+  households,
+  cultivable_area_c = 1,
+  rainfall_c = 1,
+  streamflow_c = 0,
+  runoff_c = 0
+)
 }
 \arguments{
 \item{settlements}{Tibble of settlement agents.}

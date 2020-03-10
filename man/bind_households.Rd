@@ -9,6 +9,9 @@ bind_households(old_households, new_households)
 \arguments{
 \item{new_households}{}
 }
+\value{
+
+}
 \description{
 Title
 }

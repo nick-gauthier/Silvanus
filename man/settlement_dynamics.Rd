@@ -9,6 +9,9 @@ settlement_dynamics(settlements)
 \arguments{
 \item{net}{}
 }
+\value{
+
+}
 \description{
 Settlement dynamics
 }

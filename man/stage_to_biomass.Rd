@@ -9,6 +9,9 @@ stage_to_biomass(stage)
 \arguments{
 \item{vegetation}{}
 }
+\value{
+
+}
 \description{
 Functions for converting vegetation succession stage to woody biomass (per m2) and back again.
 }

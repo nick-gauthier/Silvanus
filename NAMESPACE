@@ -2,9 +2,10 @@
 
 export(allocate_time)
 export(bind_households)
+export(create_households)
+export(create_individuals)
 export(create_world)
 export(environmental_dynamics)
-export(fission)
 export(household_dynamics)
 export(irrigate)
 export(population_dynamics)
