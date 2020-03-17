@@ -15,6 +15,7 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 
+# remotes::install_github("tidyverse/dplyr")
 library(dplyr)
 library(purrr)
 library(tidyr)
@@ -24,27 +25,48 @@ library(Silvanus)
 library(furrr)
 ```
 
-
-```{r}
-set.seed(1000) # set seed for reproducibility
-```
-
-
 First we'll create a test population of 15 25-year-olds.
 
 ```{r}
 test_pop1 <- create_individuals(15)
 ```
 
-Then run a 500 year simulation from that initial population
+Then run a 500 year simulation from that initial population.
+
 ```{r}
-nsim <- 500
+set.seed(1000) # set seed for reproducibility
+nsim <- 800
 
 demographic_sim <- tibble(time = 0:nsim,
                           age = accumulate(1:nsim, ~population_dynamics(.x), .init = test_pop1),
                           population = map_dbl(age, length)) %>%
   mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65)) / sum(between(.x, 15, 65))) * 100)
 ```
+
+
+
+### Benchmarks
+
+```{r}
+t1 <- demographic_sim[nsim,2] %>% unnest(age)
+devtools::load_all()
+```
+
+```{r}
+microbenchmark::microbenchmark(population_dynamics(t1), population_dynamics2(t1), times = 500)
+```
+
+
+```{r}
+library(profvis)
+
+profvis(population_dynamics2(t1))
+```
+
+```{r}
+pgamma
+```
+
 
 Look at the results.
 
@@ -83,7 +105,7 @@ r_test <- future_map(1:250, ~
                        tibble(time = 0:600,
                           age = accumulate(1:600, ~population_dynamics(.x), .init = test_pop1),
                           population = map_dbl(age, length)) %>%
-                       select(-age),.progress = TRUE) %>%
+                       select(-age), .progress = TRUE) %>%
   bind_rows(.id = 'rep')
 ```
 
@@ -121,9 +143,6 @@ demographic_sim2  <- expand_grid(rep = 1:10, food_ratio = seq(0.7, 1, by = 0.01)
 
 ```{r}
 demographic_sim2 %>% unnest(sim) %>% pull(population) %>% max
-
-
-1e4
 ```
 
 ```{r}

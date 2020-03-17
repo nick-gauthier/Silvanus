@@ -32,11 +32,12 @@ library(tidygraph)
 # devtools::install_github("tidyverse/tidyr")
 library(tidyr)
 
+# devtools::document()
 # devtools::build(vignettes = FALSE)
 # install.packages("~/gdrive/Projects/Silvanus_0.1.0.tar.gz", repos = NULL, type = "source")
 library(Silvanus)
 ```
-set seed for reproducability
+set seed for reproducibility
 ```{r}
 set.seed(1000)
 ```
@@ -161,7 +162,7 @@ ggplot(aes(change, group = time, color = time)) +
 
 ```
 
-
+## Food limited
 Now we can look at a food-limited population.
 
 ```{r}
@@ -217,7 +218,7 @@ ggplot(demographic_sim3, aes(time, dependency_ratio)) + geom_line()
 
 
 ```{r, eval = FALSE}
-profvis(reduce(1:nsim, ~population_dynamics(.x, food_ratio = 1), .init = test_pop1))
+profvis(reduce(1:700, ~population_dynamics(.x, food_ratio = 1), .init = test_pop1))
 ```
 
 # Single settlement dynamics

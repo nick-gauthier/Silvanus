@@ -30,4 +30,4 @@ max_labor <- 280 # maximum days per year an individual can devote to farming
 
 fertility_shape <- 4.579627
 fertility_scale <- 0.1
-survivor_scale <- 0.1
+survival_scale <- 0.1
