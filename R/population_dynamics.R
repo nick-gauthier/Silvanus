@@ -53,7 +53,7 @@ population_dynamics2 <- function(x, food_ratio_c = 1) {
       left_join(life_table, by = "age") %>% # get vital rates corresponding to age
       {if (!("food_ratio" %in% names(.))) mutate(., food_ratio = food_ratio_c) else .} %>%
       reproduce2 %>%
-      die %>%
+      die2 %>%
       mutate(age = age + 1L) %>% # happy birthday!
       select(-c(fertility_rate, survival_rate, survival_shape, survival_reduction, survived, food_ratio))
 
@@ -92,7 +92,7 @@ reproduce <- function(individuals) {
 
 reproduce2 <- function(individuals) {
   individuals %>%
-    mutate(fertility_reduction = approx_pgamma(food_ratio),
+    mutate(fertility_reduction = approx_pgamma(food_ratio, fertility_shape, fertility_scale),
            reproduced = rbernoulli(n(), fertility_rate / 2 * fertility_reduction)) %>% # divide by two to make everyone female
     filter(reproduced == TRUE) %>% # if nrows == 0, will give a (for some reason unsuppressible) warning
     {if (("household" %in% names(.)) & (nrow(.) > 0)) group_by(., household) else .} %>%
@@ -105,9 +105,12 @@ reproduce2 <- function(individuals) {
     ungroup # check for filled NA's here?
 }
 
-approx_pgamma <- approxfun(seq(from = 0, to = 1, by = .01),
-                           pgamma(seq(from = 0, to = 1, by = .01),
-                                  fertility_shape, scale = fertility_scale))
+approx_pgamma <- function(food_ratio, shape, scale) {
+  x <- seq(from = 0, to = 1, by = .001)
+  y <- pgamma(x, shape, scale = scale)
+  gamma.tmp <- approxfun(x, y, yleft = 0, yright = 1)
+  gamma.tmp(food_ratio)
+}
 
 # currently newborns age at the end of the time step, so technically there never are any newborns.
 # so perhaps age 0 should be different from newborns. that is, the model year of birth is like gestation.
@@ -120,6 +123,17 @@ die <- function(individuals, food_ratio) {
   individuals %>%
     mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survival_shape, scale = survival_scale),
            survived = rbernoulli(n(), survival_rate * survival_reduction)) %>%
+    filter(survived == TRUE)
+}
+
+
+die2 <- function(individuals, food_ratio) {
+  individuals %>%
+    group_nest(survival_shape) %>%
+    mutate(data = map2(data, survival_shape,
+                       ~mutate(.x, survival_reduction = approx_pgamma(food_ratio, .y, survival_scale)))) %>%
+    unnest(data) %>%
+    mutate(survived = rbernoulli(n(), survival_rate * survival_reduction)) %>%
     filter(survived == TRUE)
 }
 
