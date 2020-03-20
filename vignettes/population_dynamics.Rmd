@@ -113,16 +113,17 @@ ggplot(r_test, aes(time, population)) +
 Now we can look at a food-limited population.
 
 ```{r}
-demographic_sim2  <- expand_grid(rep = 1:10, food_ratio = seq(0.7, 1, by = 0.01)) %>%
+plan(multisession)
+demographic_sim2  <- expand_grid(rep = 1:25, 
+                                 food_ratio = seq(0.7, 1, by = 0.05)) %>%
   mutate(sim = future_map(food_ratio, function(x) accumulate(1:nsim, ~population_dynamics(.x, food_ratio_c = x), .init = pop1), .progress = TRUE),
          sim = map(sim, ~tibble(time = 0:nsim,
                           age = .,
-                          population = map_dbl(age, length)) %>%   mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)))
-    ```
+                          population = map_dbl(age, length)) %>%
+                     mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)))
 
-```{r}
-demographic_sim2 %>% unnest(sim) %>% pull(population) %>% max
 ```
+
 
 ```{r}
 demographic_sim2 %>% unnest %>%  filter(time == nsim) %>%
@@ -132,13 +133,23 @@ demographic_sim2 %>% unnest %>%  filter(time == nsim) %>%
 
 demographic_sim2 %>% unnest %>%  filter(time == nsim) %>%
   ggplot(aes(food_ratio, dependency_ratio, group = food_ratio)) +
-  geom_boxplot()
+  geom_boxplot() +
+  theme_classic()
 ```
 
 ```{r}
 demographic_sim2 %>%
   unnest %>%
-  filter(food_ratio >= .8) %>%
+ # filter(food_ratio >= .8) %>%
+  ggplot(aes(time, population, group =interaction(rep, food_ratio), color = food_ratio)) +
+  geom_line(alpha = .5) +
+  #scale_y_continuous(trans = 'log') +
+  scale_color_viridis_c() +
+  theme_bw()
+
+demographic_sim2 %>%
+  unnest %>%
+ filter(food_ratio >= .8) %>%
   ggplot(aes(time, population, group =interaction(rep, food_ratio), color = food_ratio)) +
   geom_line(alpha = .5) +
   scale_y_continuous(trans = 'log') +
@@ -151,18 +162,24 @@ demographic_sim2 %>%
 
 ```{r}
 nsim <- 500
-rn <- c(rep(1, 400), rep(.5, 10), rep(1, 90))
+rn <- c(rep(1, 300), rep(0.5, 30), rep(1, 170))
 demographic_sim3 <- tibble(time = 0:nsim,
                           age = accumulate(rn, ~population_dynamics(.x, food_ratio_c = .y), .init = pop1),
                           population = map_dbl(age, length)) %>%
   mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)
 ```
 
-```{r}
-ggplot(demographic_sim3, aes(time, population)) + geom_line()
+```{r, echo = FALSE}
+ggplot(demographic_sim3, aes(time, population)) + 
+  geom_ribbon(aes(xmin = 300, xmax = 330), alpha = 0.2) +
+  geom_line() +
+  theme_classic()
 
 
-ggplot(demographic_sim3, aes(time, dependency_ratio)) + geom_line()
+ggplot(demographic_sim3, aes(time, dependency_ratio)) + 
+  geom_ribbon(aes(xmin = 300, xmax = 330), alpha = 0.2) +
+  geom_line() +
+  theme_classic()
 ```
 
 
