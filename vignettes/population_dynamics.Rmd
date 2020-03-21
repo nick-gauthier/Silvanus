@@ -167,6 +167,8 @@ demographic_sim3 <- tibble(time = 0:nsim,
                           age = accumulate(rn, ~population_dynamics(.x, food_ratio_c = .y), .init = pop1),
                           population = map_dbl(age, length)) %>%
   mutate(dependency_ratio = map_dbl(age,  ~sum(!between(.x, 15, 65))/sum(between(.x, 15, 65))) * 100)
+
+demographic_sim3 <- run_sim(t1, food_ratio = rn, nsim = nsim)
 ```
 
 ```{r, echo = FALSE}
@@ -180,6 +182,84 @@ ggplot(demographic_sim3, aes(time, dependency_ratio)) +
   geom_ribbon(aes(xmin = 300, xmax = 330), alpha = 0.2) +
   geom_line() +
   theme_classic()
+```
+
+```{r}
+
+create_individuals <- function(n) {
+  tibble(age = 0:119) %>%
+   mutate(n = if_else(age != 15, 0L, as.integer(n)),
+         food_ratio = 1) %>%
+       left_join(life_table, by = 'age')
+}
+t1 <- create_individuals(25)
+
+population_dynamics2 <- function(individuals, food_ratio_c) {
+  individuals %>%
+    mutate(food_ratio = food_ratio_c) %>%
+    reproduce2() %>%
+    die2() %>%
+    mutate(n = lag(n, default = 0))# happy birthday!
+}
+
+reproduce2 <- function(individuals) {
+    individuals %>%
+    mutate(fertility_reduction = pgamma(food_ratio, shape = fertility_shape, scale = fertility_scale),
+         births = rbinom(n(), n, fertility_rate / 2 * fertility_reduction),
+         n = if_else(age != 0, n, n + sum(births))) %>%
+    select(-fertility_reduction, -births)
+}
+
+die2 <- function(individuals) {
+  individuals %>%
+        mutate(survival_reduction = pgamma(pmin(1, food_ratio), shape = survival_shape, scale = survival_scale),
+           survivors = rbinom(n(), n, survival_rate * survival_reduction),
+           n = survivors) %>%
+    select(-survival_reduction, -survivors, -food_ratio)
+}
+
+postprocess <- function(individuals) {
+  individuals %>%
+  bind_rows(.id = 'time') %>%
+  mutate(time = as.numeric(time),
+         worker = between(age, 15, 65)) %>%
+  group_by(time) %>%
+  count(worker, wt = n) %>%
+  ungroup %>%
+  spread(worker, n) %>%
+  mutate(population = `FALSE` + `TRUE`,
+         dependency_ratio = `FALSE` / `TRUE` * 100) %>%
+    select(-`FALSE`, -`TRUE`)
+}
+
+run_sim <- function(individuals, nsim, food_ratio) {
+  #length(food_ratio) should be either nsim or 1
+  if(length(food_ratio) == 1) food_ratio <- rep(food_ratio, nsim)
+  
+  accumulate(food_ratio, ~population_dynamics2(.x, food_ratio_c = .y), .init = individuals) %>%
+  postprocess()
+}
+```
+
+```{r}
+demsim <- run_sim(t1, nsim = 500, food_ratio = 1)
+
+
+
+ggplot(demsim, aes(time, population)) + geom_line() +
+  scale_y_log10()
+
+ggplot(demsim, aes(time, dependency_ratio)) + geom_line()
+```
+
+
+```{r}
+
+r_test <- future_map_dfr(1:100, 
+                     ~accumulate(1:500, ~population_dynamics2(., food_ratio = 1), .init = t1) %>%
+                       postprocess(), 
+                     .id = 'rep', .progress = TRUE)
+
 ```
 
 
