@@ -7,7 +7,9 @@
 #' @export
 #'
 #' @examples
-#' old_households <- create_households(4);new_households <- create_households(5) %>% mutate(household = NA)
+#' old_households <- create_households(4)
+#' new_households <- create_households(5) %>% mutate(household = NA)
+#' bind_households(old_households, new_households)
 #'
 bind_households <- function(old_households, new_households) {
   if (nrow(new_households) > 0) {
@@ -17,7 +19,7 @@ bind_households <- function(old_households, new_households) {
       levels %>%
       as.integer %>%
       max %>%
-      `+`(seq_along(new_households)) %>%
+      `+`(seq_len(nrow(new_households))) %>%
       as.factor %>%
       list(old_hh_nums, .) %>%
       fct_unify()
